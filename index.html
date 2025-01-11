@@ -1,160 +1,683 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Your Health Journey</title>
-    <link rel="stylesheet" href="style.css" />
-    <script src="https://unpkg.com/lucide@latest"></script>
-  </head>
-  <body>
-    <div id="landing-page">
-      <main class="container">
-        <i data-lucide="heart" class="heart-icon"></i>
-        
-        <h1>Your Health Journey Starts Here</h1>
-        
-        <p class="subtitle">
-          Track medications, monitor health metrics, and take control of your well-being with our
-          comprehensive health management platform.
-        </p>
-
-        <button class="cta-button" onclick="showDashboard()">
-          Get Started
-          <i data-lucide="arrow-right"></i>
-        </button>
-
-        <div class="features">
-          <div class="feature-card">
-            <i data-lucide="pill" class="icon"></i>
-            <h2>Medication Management</h2>
-            <p>Never miss a dose with smart reminders and tracking</p>
-          </div>
-
-          <div class="feature-card">
-            <i data-lucide="brain" class="icon"></i>
-            <h2>Health Analytics</h2>
-            <p>Visualize your health trends with detailed analytics</p>
-          </div>
-
-          <div class="feature-card">
-            <i data-lucide="thermometer" class="icon"></i>
-            <h2>Vital Monitoring</h2>
-            <p>Track and analyze your vital signs over time</p>
-          </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Health Journey</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Add pdfmake for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+    <!-- Add SheetJS for Excel export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body class="dark-mode">
+    <!-- Bottom Navigation -->
+    <nav class="main-nav">
+        <div class="nav-content">
+            <a href="#" class="nav-link active" data-page="dashboard">
+                <i data-lucide="layout-dashboard"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-link" data-page="medications">
+                <i data-lucide="pill"></i>
+                <span>Medications</span>
+            </a>
+            <a href="#" class="nav-link" data-page="health">
+                <i data-lucide="activity"></i>
+                <span>Health</span>
+            </a>
+            <a href="#" class="nav-link" data-page="settings">
+                <i data-lucide="settings"></i>
+                <span>Settings</span>
+            </a>
         </div>
-      </main>
-    </div>
+    </nav>
 
-    <div id="dashboard" style="display: none;">
-      <main class="dashboard">
-        <header class="header">
-          <div>
-            <h1>Welcome Back!</h1>
-            <p class="date"></p>
-          </div>
-        </header>
-
-        <div class="dashboard-grid">
-          <!-- Wellness Score Card -->
-          <div class="card wellness-card">
-            <div class="card-header">
-              <h2><i data-lucide="heart"></i> Wellness Score</h2>
-            </div>
-            <div class="score">85%</div>
-            <p class="score-message">Your health metrics are looking great! Keep up the excellent work.</p>
-          </div>
-
-          <!-- Health Metrics Card -->
-          <div class="card metrics-card">
-            <h2>Health Metrics Overview</h2>
-            <div class="metrics-tabs">
-              <button class="tab active">All Metrics</button>
-              <button class="tab">Blood Pressure</button>
-              <button class="tab">Glucose</button>
-            </div>
-            <div class="graph-container">
-              <p class="graph-placeholder">Graph will be displayed here</p>
-            </div>
-            <div class="metrics-legend">
-              <span class="legend-item"><span class="dot bp"></span>BP</span>
-              <span class="legend-item"><span class="dot glucose"></span>Glucose</span>
-              <span class="legend-item"><span class="dot weight"></span>Weight</span>
-              <span class="legend-item"><span class="dot temp"></span>Temp</span>
-            </div>
-          </div>
-
-          <!-- Appointments Card -->
-          <div class="card appointments-card">
-            <div class="card-header">
-              <h2>Upcoming Appointments</h2>
-              <button class="add-button">
-                <i data-lucide="plus"></i>
-              </button>
-            </div>
-            <div class="appointments-list">
-              <div class="appointment">
-                <h3>Dr. Sarah Johnson</h3>
-                <p class="specialty">Cardiologist</p>
-                <div class="appointment-info">
-                  <div class="appointment-details">
-                    <i data-lucide="calendar"></i>
-                    <span>15/03/2024</span>
-                    <i data-lucide="clock"></i>
-                    <span>10:00 AM</span>
-                  </div>
-                  <div class="appointment-location">
-                    <i data-lucide="map-pin"></i>
-                    <span>Heart Care Center</span>
-                  </div>
+    <main id="app">
+        <!-- Landing Page -->
+        <section id="landing-page" class="page active">
+            <div class="hero">
+                <div class="heart-icon">
+                    <i data-lucide="heart" width="96" height="96"></i>
                 </div>
-              </div>
-              <div class="appointment">
-                <h3>Dr. Michael Chen</h3>
-                <p class="specialty">General Physician</p>
-                <div class="appointment-info">
-                  <div class="appointment-details">
-                    <i data-lucide="calendar"></i>
-                    <span>20/03/2024</span>
-                    <i data-lucide="clock"></i>
-                    <span>2:30 PM</span>
-                  </div>
-                  <div class="appointment-location">
-                    <i data-lucide="map-pin"></i>
-                    <span>Medical Plaza</span>
-                  </div>
-                </div>
-              </div>
+                <h1>Your Health Journey<br>Starts Here</h1>
+                <p>Track medications, monitor health metrics, and take control of your well-being with our comprehensive health management platform.</p>
+                <button class="btn btn-primary">Get Started <i data-lucide="arrow-right"></i></button>
             </div>
-          </div>
-        </div>
-      </main>
-    </div>
 
+            <div class="features">
+                <div class="feature-card">
+                    <i data-lucide="pill" width="48" height="48"></i>
+                    <h3>Medication Management</h3>
+                    <p>Never miss a dose with smart reminders and tracking</p>
+                </div>
+                <div class="feature-card">
+                    <i data-lucide="brain" width="48" height="48"></i>
+                    <h3>Health Analytics</h3>
+                    <p>Visualize your health trends with detailed analytics</p>
+                </div>
+                <div class="feature-card">
+                    <i data-lucide="thermometer" width="48" height="48"></i>
+                    <h3>Vital Monitoring</h3>
+                    <p>Track and analyze your vital signs over time</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Dashboard Page -->
+        <section id="dashboard-page" class="page">
+            <header class="page-header">
+                <h1>Welcome Back!</h1>
+                <p class="date">Sunday, December 29, 2024</p>
+            </header>
+
+            <div class="dashboard-grid">
+                <div class="card wellness-score">
+                    <h3><i data-lucide="heart" width="24" height="24"></i> Wellness Score</h3>
+                    <div class="score">85%</div>
+                    <div class="progress-bar">
+                        <div class="progress" style="width: 85%"></div>
+                    </div>
+                    <p>Your health metrics are looking great! Keep up the excellent work.</p>
+                </div>
+
+                <div class="card health-metrics">
+                    <h3>Health Metrics Overview</h3>
+                    <div class="metrics-tabs">
+                        <button class="active">All Metrics</button>
+                        <button>Blood Pressure</button>
+                        <button>Glucose</button>
+                    </div>
+                    <div class="metrics-chart">
+                        <canvas id="metricsChart"></canvas>
+                    </div>
+                    <div class="metrics-legend">
+                        <span class="bp">BP</span>
+                        <span class="glucose">Glucose</span>
+                        <span class="weight">Weight</span>
+                        <span class="temp">Temp</span>
+                    </div>
+                </div>
+
+                <div class="card appointments">
+                    <div class="card-header">
+                        <h3>
+                            <i data-lucide="calendar" width="24" height="24"></i>
+                            Upcoming Appointments
+                        </h3>
+                        <button class="btn-icon">
+                            <i data-lucide="plus" width="20" height="20"></i>
+                        </button>
+                    </div>
+                    <div class="appointment-list">
+                        <div class="appointment">
+                            <div class="appointment-info">
+                                <h4>Dr. Sarah Johnson</h4>
+                                <p>Cardiologist</p>
+                                <p><i data-lucide="calendar"></i> 15/03/2024</p>
+                                <p><i data-lucide="clock"></i> 10:00 AM</p>
+                                <p><i data-lucide="map-pin"></i> Heart Care Center</p>
+                            </div>
+                            <div class="appointment-actions">
+                                <button class="btn-icon">
+                                    <i data-lucide="edit-2"></i>
+                                </button>
+                                <button class="btn-icon delete">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="appointment">
+                            <div class="appointment-info">
+                                <h4>Dr. Michael Chen</h4>
+                                <p>General Physician</p>
+                                <p><i data-lucide="calendar"></i> 20/03/2024</p>
+                                <p><i data-lucide="clock"></i> 2:30 PM</p>
+                                <p><i data-lucide="map-pin"></i> Medical Plaza</p>
+                            </div>
+                            <div class="appointment-actions">
+                                <button class="btn-icon">
+                                    <i data-lucide="edit-2"></i>
+                                </button>
+                                <button class="btn-icon delete">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Medications Page -->
+        <section id="medications-page" class="page">
+            <header class="page-header">
+                <h1>Medications</h1>
+                <p>Manage your medications and schedules</p>
+            </header>
+
+            <div class="medications-grid">
+                <div class="medications-top">
+                    <div class="card adherence">
+                        <h3>Medication Adherence</h3>
+                        <div class="adherence-rate">
+                            <span>Monthly Adherence Rate</span>
+                            <span class="rate">0.0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress" style="width: 0%"></div>
+                        </div>
+                        <div class="weekly-tracker">
+                            <h4>Last 7 Days</h4>
+                            <div class="days">
+                                <div class="day"></div>
+                                <div class="day"></div>
+                                <div class="day"></div>
+                                <div class="day"></div>
+                                <div class="day"></div>
+                                <div class="day"></div>
+                                <div class="day"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card quick-actions">
+                        <h3>Quick Actions</h3>
+                        <button class="btn btn-primary"><i data-lucide="plus"></i> Add Medication</button>
+                        <button class="btn btn-danger reset-medications"><i data-lucide="refresh-cw"></i> Reset Medications</button>
+                    </div>
+                </div>
+
+                <div class="card medication-list">
+                    <div class="card-header">
+                        <h3>
+                            <i data-lucide="pill"></i>
+                            Current Medications
+                        </h3>
+                    </div>
+                    <div class="medications-container">
+                        <!-- Medications will be added here dynamically -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Health Page -->
+        <section id="health-page" class="page">
+            <header class="page-header">
+                <h2>Health Tracker</h2>
+                <p class="text-muted">Monitor your health metrics and track your progress</p>
+            </header>
+
+            <div class="health-grid">
+                <!-- BMI Calculator -->
+                <div class="card bmi-calculator">
+                    <div class="card-header">
+                        <h3>
+                            <i data-lucide="calculator"></i>
+                            BMI Calculator
+                        </h3>
+                    </div>
+                    <form id="bmiForm" class="bmi-form">
+                        <div class="form-group">
+                            <label>
+                                <i data-lucide="ruler"></i>
+                                Height (cm)
+                            </label>
+                            <input type="number" id="height" placeholder="Enter your height" required>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <i data-lucide="weight"></i>
+                                Weight (kg)
+                            </label>
+                            <input type="number" id="weight" placeholder="Enter your weight" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Calculate BMI</button>
+                        <div class="bmi-result" style="display: none;"></div>
+                    </form>
+                </div>
+
+                <!-- Health Metrics -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>
+                            <i data-lucide="activity"></i>
+                            Health Metrics
+                        </h3>
+                    </div>
+                    <div class="metrics-grid">
+                        <div class="metric metric-bmi">
+                            <div class="metric-label">BMI</div>
+                            <div class="metric-value">--</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Blood Pressure</div>
+                            <div class="metric-value">--/--</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Weight</div>
+                            <div class="metric-value">-- kg</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Temperature</div>
+                            <div class="metric-value">-- °C</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Chart -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>
+                            <i data-lucide="line-chart"></i>
+                            Health Trends
+                        </h3>
+                    </div>
+                    <canvas id="healthChart"></canvas>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>
+                            <i data-lucide="plus-circle"></i>
+                            Quick Actions
+                        </h3>
+                    </div>
+                    <div class="actions">
+                        <button class="btn btn-secondary add-health-log">
+                            <i data-lucide="plus"></i>
+                            Add Health Log
+                        </button>
+                        <button class="btn btn-secondary" onclick="exportData('pdf')">
+                            <i data-lucide="download"></i>
+                            Export Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Settings Page -->
+        <section id="settings-page" class="page">
+            <header class="page-header">
+                <h2>Settings</h2>
+                <p class="text-muted">Customize your app preferences</p>
+            </header>
+
+            <div class="settings-grid">
+                <!-- Notification Settings -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>
+                            <i data-lucide="bell"></i>
+                            Notifications
+                        </h3>
+                    </div>
+                    <div class="settings-list">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h4>Medication Reminders</h4>
+                                <p class="text-muted">Get notified when it's time to take your medications</p>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="medicationNotifications" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h4>Health Alerts</h4>
+                                <p class="text-muted">Receive alerts for important health updates</p>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="healthAlerts" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h4>Appointment Reminders</h4>
+                                <p class="text-muted">Get notified about upcoming appointments</p>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="appointmentReminders" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preferences -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>
+                            <i data-lucide="settings"></i>
+                            Preferences
+                        </h3>
+                    </div>
+                    <div class="settings-list">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h4>Units</h4>
+                                <p class="text-muted">Choose your preferred measurement system</p>
+                            </div>
+                            <select id="units" class="select-input">
+                                <option value="metric">Metric (kg, cm)</option>
+                                <option value="imperial">Imperial (lb, in)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Management -->
+                <div class="card">
+                    <div class="card-header">
+                        <h3>
+                            <i data-lucide="database"></i>
+                            Data Management
+                        </h3>
+                    </div>
+                    <div class="settings-list">
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h4>Export Data</h4>
+                                <p class="text-muted">Download your health data</p>
+                            </div>
+                            <div class="export-buttons">
+                                <button class="btn btn-secondary" onclick="exportData('pdf')">
+                                    <i data-lucide="file-text"></i>
+                                    PDF
+                                </button>
+                                <button class="btn btn-secondary" onclick="exportData('excel')">
+                                    <i data-lucide="file-spreadsheet"></i>
+                                    Excel
+                                </button>
+                            </div>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <h4>Clear Data</h4>
+                                <p class="text-muted">Delete all your stored data</p>
+                            </div>
+                            <button class="btn btn-danger">
+                                <i data-lucide="trash-2"></i>
+                                Clear
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Fix alignment in existing sections -->
+        <style>
+            .page {
+                padding: 2rem max(1rem, calc((100% - 1200px) / 2));
+            }
+            
+            .nav-content {
+                padding: 0 max(1rem, calc((100% - 1200px) / 2));
+            }
+            
+            .card {
+                height: 100%;
+            }
+            
+            .dashboard-grid,
+            .medications-grid,
+            .health-grid {
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            
+            @media (min-width: 768px) {
+                .page {
+                    padding-left: max(2rem, calc((100% - 1200px) / 2));
+                    padding-right: max(2rem, calc((100% - 1200px) / 2));
+                }
+            }
+
+            .settings-list {
+                display: flex;
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .setting-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                gap: 1rem;
+                padding: 1rem;
+                border-radius: 12px;
+                background-color: rgba(255, 255, 255, 0.05);
+                transition: background-color 0.2s ease;
+            }
+
+            .setting-item:hover {
+                background-color: rgba(255, 255, 255, 0.08);
+            }
+
+            .setting-info {
+                flex: 1;
+            }
+
+            .setting-info h4 {
+                margin-bottom: 0.25rem;
+                font-size: 1.125rem;
+                color: var(--text-light);
+            }
+
+            .setting-info p {
+                color: var(--text-muted);
+                font-size: 0.875rem;
+            }
+
+            /* Settings Page */
+            .settings-grid {
+                display: grid;
+                gap: 1.5rem;
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+
+            @media (min-width: 768px) {
+                .settings-grid {
+                    grid-template-columns: repeat(2, 1fr);
+                }
+            }
+
+            @media (min-width: 1024px) {
+                .settings-grid {
+                    grid-template-columns: repeat(3, 1fr);
+                }
+            }
+
+            /* Toggle Switch */
+            .toggle {
+                position: relative;
+                display: inline-block;
+                width: 52px;
+                height: 28px;
+            }
+
+            .toggle input {
+                opacity: 0;
+                width: 0;
+                height: 0;
+            }
+
+            .toggle-slider {
+                position: absolute;
+                cursor: pointer;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background-color: rgba(255, 255, 255, 0.1);
+                transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                border-radius: 34px;
+            }
+
+            .toggle-slider:before {
+                position: absolute;
+                content: "";
+                height: 20px;
+                width: 20px;
+                left: 4px;
+                bottom: 4px;
+                background-color: white;
+                transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                border-radius: 50%;
+            }
+
+            input:checked + .toggle-slider {
+                background-color: var(--primary-color);
+            }
+
+            input:checked + .toggle-slider:before {
+                transform: translateX(24px);
+            }
+
+            /* Select Input */
+            .select-input {
+                padding: 0.75rem 1rem;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 12px;
+                background-color: rgba(255, 255, 255, 0.05);
+                color: var(--text-light);
+                font-size: 1rem;
+                min-width: 160px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .select-input:hover {
+                border-color: rgba(255, 255, 255, 0.2);
+            }
+
+            .select-input:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+            }
+        </style>
+    </main>
+
+    <script src="js/app.js"></script>
     <script>
-      // Initialize Lucide icons
-      lucide.createIcons();
-
-      // Show dashboard and hide landing page
-      function showDashboard() {
-        document.getElementById('landing-page').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        
-        // Set current date
-        const dateElement = document.querySelector('.date');
-        const currentDate = new Date();
-        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-        dateElement.textContent = currentDate.toLocaleDateString('en-US', options);
-      }
-
-      // Tab switching functionality
-      const tabs = document.querySelectorAll('.tab');
-      tabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-          tabs.forEach(t => t.classList.remove('active'));
-          tab.classList.add('active');
-        });
-      });
+        // Initialize Lucide icons
+        lucide.createIcons();
     </script>
-  </body>
-</html>
+
+    <!-- Appointment Modal -->
+    <div id="appointmentModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Appointment</h3>
+                <button class="btn-icon close-modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="appointmentForm">
+                <div class="form-group">
+                    <label>Doctor Name</label>
+                    <input type="text" id="doctorName" required>
+                </div>
+                <div class="form-group">
+                    <label>Specialty</label>
+                    <input type="text" id="specialty" required>
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="appointmentDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Time</label>
+                    <input type="time" id="appointmentTime" required>
+                </div>
+                <div class="form-group">
+                    <label>Location</label>
+                    <input type="text" id="location" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary cancel-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add Health Log Modal -->
+    <div id="healthLogModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Health Log</h3>
+                <button class="btn-icon close-modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="healthLogForm">
+                <div class="form-group">
+                    <label>Metric Type</label>
+                    <select id="metricType" required>
+                        <option value="bloodPressure">Blood Pressure</option>
+                        <option value="weight">Weight</option>
+                        <option value="temperature">Temperature</option>
+                    </select>
+                </div>
+                <div id="metricFields">
+                    <!-- Dynamic fields will be added here based on metric type -->
+                </div>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="datetime-local" id="metricDate" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary cancel-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Log</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Medication Modal -->
+    <div id="medicationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Add Medication</h3>
+                <button class="btn-icon close-modal">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <form id="medicationForm">
+                <div class="form-group">
+                    <label>Medication Name</label>
+                    <input type="text" id="medicationName" required>
+                </div>
+                <div class="form-group">
+                    <label>Dosage</label>
+                    <input type="text" id="dosage" required placeholder="e.g., 500mg">
+                </div>
+                <div class="form-group">
+                    <label>Times (comma-separated)</label>
+                    <input type="text" id="times" required placeholder="e.g., 09:00, 15:00, 21:00">
+                </div>
+                <div class="form-group">
+                    <label>Instructions</label>
+                    <input type="text" id="instructions" required placeholder="e.g., Take with food">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary cancel-modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Medication</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html> 
