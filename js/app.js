@@ -1,65 +1,3 @@
-// Firebase Initialization
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-
-const firebaseConfig = {
-  apiKey: "AIzaSyCMeyE6ashXBGg3CbLUHOZm0NrdW2ekaT8",
-  authDomain: "medtracker-ce3e4.firebaseapp.com",
-  projectId: "medtracker-ce3e4",
-  storageBucket: "medtracker-ce3e4.firebasestorage.app",
-  messagingSenderId: "964873724883",
-  appId: "1:964873724883:web:74b1e7ef71ba0836a34526"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const provider = new GoogleAuthProvider();
-
-// Handle Authentication
-document.addEventListener('DOMContentLoaded', () => {
-    const authForm = document.getElementById('auth-form');
-    const googleSignInButton = document.getElementById('googleSignIn');
-
-    if (googleSignInButton) {
-        googleSignInButton.addEventListener('click', async () => {
-            try {
-                await signInWithPopup(auth, provider);
-                window.location.href = 'index.html';
-            } catch (error) {
-                console.error('Google Sign In Error:', error);
-                alert('Error: ' + error.message);
-            }
-        });
-    }
-    if (authForm) {
-        authForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-
-            try {
-                await signInWithEmailAndPassword(auth, email, password);
-                window.location.href = 'index.html';
-            } catch (error) {
-                console.error('Authentication error:', error);
-                alert('Error: ' + error.message);
-            }
-        });
-    }
-
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            if (window.location.pathname.includes('auth.html')) {
-                window.location.href = 'index.html';
-            }
-        } else {
-            if (!window.location.pathname.includes('auth.html')) {
-                window.location.href = 'auth.html';
-            }
-        }
-    });
-});
-
 // Navigation
 function navigateToPage(pageId) {
     // If we're on landing page and clicking dashboard, or clicking home/dashboard from anywhere
@@ -258,10 +196,8 @@ function getBMICategory(bmi) {
 }
 
 function handleBMICalculation(e) {
-    e.preventDefault();
-    
-    const appData = loadAppData();
-    const unit = appData.settings.units || 'metric';
+    e.preventDefault(); // Important: prevent form submission
+    e.stopPropagation(); // Stop event from bubbling up
     
     const height = parseFloat(document.getElementById('height').value);
     const weight = parseFloat(document.getElementById('weight').value);
@@ -271,10 +207,11 @@ function handleBMICalculation(e) {
         return;
     }
 
-    // Calculate BMI based on unit system
-    const bmi = calculateBMI(height, weight, unit);
+    // Calculate BMI
+    const bmi = calculateBMI(height, weight);
     const { category, color } = getBMICategory(bmi);
     
+    // Update UI
     const resultElement = document.querySelector('.bmi-result');
     resultElement.innerHTML = `
         <div class="result-value" style="color: ${color}">
@@ -289,23 +226,26 @@ function handleBMICalculation(e) {
     `;
     resultElement.style.display = 'block';
 
-    // Save to health logs
-    const healthLog = {
+    // Save to local storage
+    const appData = JSON.parse(localStorage.getItem('healthAppData')) || {};
+    const healthLogs = appData.healthLogs || [];
+    
+    healthLogs.push({
         date: new Date().toISOString(),
         type: 'BMI',
         value: parseFloat(bmi.toFixed(1)),
         category: category,
-        measurements: {
-            height: height,
-            weight: weight,
-            unit: unit
-        }
-    };
+        measurements: { height, weight }
+    });
     
-    appData.healthLogs = appData.healthLogs || [];
-    appData.healthLogs.push(healthLog);
-    saveAppData(appData);
-    updateHealthMetrics();
+    appData.healthLogs = healthLogs;
+    localStorage.setItem('healthAppData', JSON.stringify(appData));
+
+    // Update BMI metric display
+    const bmiMetric = document.querySelector('.metric-bmi .metric-value');
+    if (bmiMetric) {
+        bmiMetric.textContent = bmi.toFixed(1);
+    }
 }
 
 // Update BMI calculator UI based on selected unit system
@@ -409,16 +349,44 @@ function updateHealthMetrics() {
 }
 
 // Data Management
-function loadAppData() {
-    const storedData = localStorage.getItem('healthAppData');
-    if (!storedData) {
-        return initializeSampleData();
+async function loadAppData() {
+    // Always load local data first
+    const localData = JSON.parse(localStorage.getItem('healthAppData')) || initializeSampleData();
+    
+    // If user is signed in, try to merge with cloud data
+    const user = firebase.auth().currentUser;
+    if (user) {
+        try {
+            const doc = await db.collection('users').doc(user.uid).get();
+            if (doc.exists) {
+                const cloudData = doc.data();
+                // Merge cloud data with local data, preferring cloud data
+                return { ...localData, ...cloudData };
+            }
+        } catch (error) {
+            console.error('Error loading cloud data:', error);
+        }
     }
-    return JSON.parse(storedData);
+    
+    return localData;
 }
 
-function saveAppData(data) {
+async function saveAppData(data) {
+    // Always save to localStorage
     localStorage.setItem('healthAppData', JSON.stringify(data));
+    
+    // If user is signed in, also save to cloud
+    const user = firebase.auth().currentUser;
+    if (user) {
+        try {
+            await db.collection('users').doc(user.uid).set({
+                ...data,
+                lastUpdated: new Date()
+            }, { merge: true });
+        } catch (error) {
+            console.error('Error saving to cloud:', error);
+        }
+    }
 }
 
 // Health Chart Initialization
@@ -785,44 +753,52 @@ function updateNotificationSettings() {
 
 // Wellness Score Calculation
 function calculateWellnessScore() {
-    const appData = loadAppData();
     let score = 85; // Base score
-    let factors = 0;
     
-    // Check medication adherence
-    if (appData.medications.length > 0) {
-        const adherenceRate = calculateMedicationAdherence();
-        score += (adherenceRate - 50) / 10; // Adjust score based on adherence
-        factors++;
+    try {
+        const appData = loadAppData();
+        if (!appData) return score;
+
+        let factors = 0;
+        
+        // Check medication adherence
+        if (appData.medications.length > 0) {
+            const adherenceRate = calculateMedicationAdherence();
+            score += (adherenceRate - 50) / 10; // Adjust score based on adherence
+            factors++;
+        }
+        
+        // Check appointment attendance
+        if (appData.appointments.length > 0) {
+            const attendanceRate = calculateAppointmentAttendance();
+            score += (attendanceRate - 50) / 10;
+            factors++;
+        }
+        
+        // Check health metrics
+        const healthMetrics = appData.healthMetrics;
+        if (healthMetrics.bloodPressure.length > 0) {
+            const lastBP = healthMetrics.bloodPressure[healthMetrics.bloodPressure.length - 1];
+            if (lastBP.systolic < 120 && lastBP.diastolic < 80) score += 5;
+            else if (lastBP.systolic > 140 || lastBP.diastolic > 90) score -= 5;
+            factors++;
+        }
+        
+        // Normalize score
+        if (factors > 0) {
+            score = Math.min(100, Math.max(0, score));
+        }
+        
+        return Math.round(score);
+    } catch (error) {
+        console.error('Error calculating wellness score:', error);
+        return score;
     }
-    
-    // Check appointment attendance
-    if (appData.appointments.length > 0) {
-        const attendanceRate = calculateAppointmentAttendance();
-        score += (attendanceRate - 50) / 10;
-        factors++;
-    }
-    
-    // Check health metrics
-    const healthMetrics = appData.healthMetrics;
-    if (healthMetrics.bloodPressure.length > 0) {
-        const lastBP = healthMetrics.bloodPressure[healthMetrics.bloodPressure.length - 1];
-        if (lastBP.systolic < 120 && lastBP.diastolic < 80) score += 5;
-        else if (lastBP.systolic > 140 || lastBP.diastolic > 90) score -= 5;
-        factors++;
-    }
-    
-    // Normalize score
-    if (factors > 0) {
-        score = Math.min(100, Math.max(0, score));
-    }
-    
-    return Math.round(score);
 }
 
 // Appointment Management
-function addAppointment(appointmentData) {
-    const appData = loadAppData();
+async function addAppointment(appointmentData) {
+    const appData = await loadAppData();
     const newAppointment = {
         id: Date.now(),
         ...appointmentData,
@@ -831,7 +807,7 @@ function addAppointment(appointmentData) {
     
     appData.appointments = appData.appointments || [];
     appData.appointments.push(newAppointment);
-    saveAppData(appData);
+    await saveAppData(appData);
     
     // Schedule reminders for the new appointment
     scheduleAppointmentReminders(newAppointment);
@@ -853,70 +829,86 @@ function editAppointment(id, updatedData) {
     }
 }
 
-function deleteAppointment(id) {
-    const appData = loadAppData();
-    appData.appointments = appData.appointments.filter(apt => apt.id !== id);
-    saveAppData(appData);
-    updateAppointmentsUI();
+async function deleteAppointment(id) {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    if (confirm('Are you sure you want to delete this appointment?')) {
+        try {
+            const doc = await db.collection('users').doc(user.uid).get();
+            const userData = doc.data() || {};
+            const appointments = userData.appointments || [];
+
+            // Filter out the deleted appointment
+            const updatedAppointments = appointments.filter(apt => apt.id !== id);
+
+            // Update Firestore
+            await db.collection('users').doc(user.uid).update({
+                appointments: updatedAppointments
+            });
+
+            await updateAppointmentsUI(); // Refresh UI
+        } catch (error) {
+            console.error('Error deleting appointment:', error);
+            alert('Failed to delete appointment. Please try again.');
+        }
+    }
 }
 
-function updateAppointmentsUI() {
+async function updateAppointmentsUI() {
     const appointmentList = document.querySelector('.appointment-list');
     if (!appointmentList) return;
 
-    const appData = loadAppData();
-    const upcomingAppointments = appData.appointments
-        ? appData.appointments
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    try {
+        const doc = await db.collection('users').doc(user.uid).get();
+        const userData = doc.data() || {};
+        const appointments = userData.appointments || [];
+
+        // Filter upcoming appointments and sort by date
+        const upcomingAppointments = appointments
             .filter(apt => apt.status === 'upcoming')
-            .sort((a, b) => new Date(a.date) - new Date(b.date))
-        : [];
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
 
-    appointmentList.innerHTML = upcomingAppointments
-        .map(apt => `
-            <div class="appointment" data-id="${apt.id}">
-                <div class="appointment-info">
-                    <h4>${apt.doctorName}</h4>
-                    <p>${apt.specialty}</p>
-                    <p><i data-lucide="calendar"></i> ${apt.date}</p>
-                    <p><i data-lucide="clock"></i> ${apt.time}</p>
-                    <p><i data-lucide="map-pin"></i> ${apt.location}</p>
+        if (upcomingAppointments.length === 0) {
+            appointmentList.innerHTML = '<p class="text-muted">No upcoming appointments</p>';
+            return;
+        }
+
+        appointmentList.innerHTML = upcomingAppointments
+            .map(apt => `
+                <div class="appointment" data-id="${apt.id}">
+                    <div class="appointment-info">
+                        <h4>${apt.doctorName}</h4>
+                        <p>${apt.specialty}</p>
+                        <p><i data-lucide="calendar"></i> ${apt.date}</p>
+                        <p><i data-lucide="clock"></i> ${apt.time}</p>
+                        <p><i data-lucide="map-pin"></i> ${apt.location}</p>
+                    </div>
+                    <div class="appointment-actions">
+                        <button class="btn-icon edit-appointment" onclick="editAppointment(${apt.id})">
+                            <i data-lucide="edit-2"></i>
+                        </button>
+                        <button class="btn-icon delete delete-appointment" onclick="deleteAppointment(${apt.id})">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </div>
                 </div>
-                <div class="appointment-actions">
-                    <button class="btn-icon edit-appointment">
-                        <i data-lucide="edit-2"></i>
-                    </button>
-                    <button class="btn-icon delete delete-appointment">
-                        <i data-lucide="trash-2"></i>
-                    </button>
-                </div>
-            </div>
-        `)
-        .join('');
+            `)
+            .join('');
 
-    // Reinitialize Lucide icons
-    lucide.createIcons();
-
-    // Add event listeners
-    appointmentList.querySelectorAll('.delete-appointment').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const appointmentId = parseInt(e.target.closest('.appointment').dataset.id);
-            if (confirm('Are you sure you want to delete this appointment?')) {
-                deleteAppointment(appointmentId);
-            }
-        });
-    });
-
-    appointmentList.querySelectorAll('.edit-appointment').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const appointmentId = parseInt(e.target.closest('.appointment').dataset.id);
-            showModal('appointmentModal', appointmentId);
-        });
-    });
+        // Reinitialize icons
+        lucide.createIcons();
+    } catch (error) {
+        console.error('Error updating appointments UI:', error);
+    }
 }
 
 // Health Metrics Management
-function addHealthMetric(type, value, date = new Date()) {
-    const appData = loadAppData();
+async function addHealthMetric(type, value, date = new Date()) {
+    const appData = await loadAppData();
     appData.healthMetrics = appData.healthMetrics || {};
     appData.healthMetrics[type] = appData.healthMetrics[type] || [];
     
@@ -928,7 +920,7 @@ function addHealthMetric(type, value, date = new Date()) {
     };
     
     appData.healthMetrics[type].push(newMetric);
-    saveAppData(appData);
+    await saveAppData(appData);
     updateHealthMetricsUI();
     calculateWellnessScore(); // Use calculateWellnessScore instead
 }
@@ -1217,30 +1209,49 @@ function hideModal(modalId) {
 }
 
 // Appointment Form Handling
-function handleAppointmentSubmit(e) {
+async function handleAppointmentSubmit(e) {
     e.preventDefault();
-    
-    const appointmentData = {
-        doctorName: document.getElementById('doctorName').value,
-        specialty: document.getElementById('specialty').value,
-        date: document.getElementById('appointmentDate').value,
-        time: document.getElementById('appointmentTime').value,
-        location: document.getElementById('location').value
-    };
+    const user = firebase.auth().currentUser;
+    if (!user) return;
 
-    const editId = e.target.dataset.editId;
-    if (editId) {
-        editAppointment(parseInt(editId), appointmentData);
-    } else {
-        addAppointment(appointmentData);
+    try {
+        const appointmentData = {
+            doctorName: document.getElementById('doctorName').value,
+            specialty: document.getElementById('specialty').value,
+            date: document.getElementById('appointmentDate').value,
+            time: document.getElementById('appointmentTime').value,
+            location: document.getElementById('location').value,
+            status: 'upcoming',
+            createdAt: new Date().toISOString(),
+            userId: user.uid
+        };
+
+        // Get current appointments array
+        const doc = await db.collection('users').doc(user.uid).get();
+        const userData = doc.data() || {};
+        const appointments = userData.appointments || [];
+        
+        // Add new appointment
+        appointments.push({
+            id: Date.now(),
+            ...appointmentData
+        });
+
+        // Update Firestore
+        await db.collection('users').doc(user.uid).update({
+            appointments: appointments
+        });
+
+        hideModal('appointmentModal');
+        await updateAppointmentsUI(); // Refresh UI
+    } catch (error) {
+        console.error('Error adding appointment:', error);
+        alert('Failed to add appointment. Please try again.');
     }
-
-    hideModal('appointmentModal');
-    updateAppointmentsUI(); // Refresh the UI
 }
 
 // Health Log Form Handling
-function handleHealthLogSubmit(e) {
+async function handleHealthLogSubmit(e) {
     e.preventDefault();
     
     const metricType = document.getElementById('metricType').value;
@@ -1262,7 +1273,7 @@ function handleHealthLogSubmit(e) {
             break;
     }
 
-    addHealthMetric(metricType, value, new Date(date));
+    await addHealthMetric(metricType, value, new Date(date));
     hideModal('healthLogModal');
     updateHealthMetricsUI();
 }
@@ -1408,40 +1419,131 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Medication Management - Fixed
-function addMedication(medicationData) {
-    console.log('Adding medication:', medicationData);
-    const appData = JSON.parse(localStorage.getItem('healthAppData')) || { medications: [] };
-    
+async function addMedication(medicationData) {
+    const appData = await loadAppData();
     const newMedication = {
         id: Date.now(),
-        name: medicationData.name || '',
-        dosage: medicationData.dosage || '',
-        times: medicationData.times || [],
-        instructions: medicationData.instructions || '',
+        name: medicationData.name,
+        dosage: medicationData.dosage,
+        times: medicationData.times.map(t => t.trim()),
+        instructions: medicationData.instructions,
         status: 'active',
         dateAdded: new Date().toISOString()
     };
     
     appData.medications.push(newMedication);
-    localStorage.setItem('healthAppData', JSON.stringify(appData));
+    await saveAppData(appData);
+    
+    // Schedule reminders for the new medication
+    scheduleMedicationReminders(newMedication);
+    
     updateMedicationsUI();
+    updateAdherenceRate();
 }
 
-function deleteMedication(id) {
-    const appData = JSON.parse(localStorage.getItem('healthAppData'));
-    if (!appData || !appData.medications) return;
+async function handleMedicationSubmit(e) {
+    e.preventDefault();
     
-    appData.medications = appData.medications.filter(med => med.id !== id);
-    localStorage.setItem('healthAppData', JSON.stringify(appData));
-    updateMedicationsUI();
+    const user = firebase.auth().currentUser;
+    if (!user) {
+        alert('Please sign in to add medications');
+        return;
+    }
+
+    try {
+        const medicationData = {
+            name: document.getElementById('medicationName').value,
+            dosage: document.getElementById('dosage').value,
+            times: document.getElementById('times').value.split(',').map(t => t.trim()),
+            instructions: document.getElementById('instructions').value,
+            status: 'active',
+            dateAdded: new Date().toISOString()
+        };
+
+        // Get current medications array
+        const doc = await db.collection('users').doc(user.uid).get();
+        const userData = doc.data() || {};
+        const medications = userData.medications || [];
+
+        // Add new medication
+        medications.push({
+            id: Date.now(),
+            ...medicationData
+        });
+
+        // Update Firestore
+        await db.collection('users').doc(user.uid).update({
+            medications: medications
+        });
+
+        // Close modal and refresh UI
+        hideModal('medicationModal');
+        await updateMedicationsUI();
+    } catch (error) {
+        console.error('Error adding medication:', error);
+        alert('Failed to add medication. Please try again.');
+    }
+}
+
+async function deleteMedication(id) {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    if (confirm('Are you sure you want to delete this medication?')) {
+        try {
+            const doc = await db.collection('users').doc(user.uid).get();
+            const userData = doc.data() || {};
+            const medications = userData.medications || [];
+
+            // Filter out the deleted medication
+            const updatedMedications = medications.filter(med => med.id !== id);
+
+            // Update Firestore
+            await db.collection('users').doc(user.uid).update({
+                medications: updatedMedications
+            });
+
+            // Refresh UI
+            await updateMedicationsUI();
+        } catch (error) {
+            console.error('Error deleting medication:', error);
+            alert('Failed to delete medication. Please try again.');
+        }
+    }
 }
 
 function updateMedicationsUI() {
     const medicationList = document.querySelector('.medications-container');
     if (!medicationList) return;
 
-    const appData = JSON.parse(localStorage.getItem('healthAppData')) || { medications: [] };
-    const medications = appData.medications || [];
+    // Load from localStorage first
+    const localData = JSON.parse(localStorage.getItem('healthAppData')) || {};
+    let medications = localData.medications || [];
+
+    // If signed in, merge with cloud data
+    const user = firebase.auth().currentUser;
+    if (user) {
+        db.collection('users').doc(user.uid).get()
+            .then(doc => {
+                if (doc.exists) {
+                    const cloudData = doc.data();
+                    medications = [...medications, ...(cloudData.medications || [])];
+                }
+                renderMedications(medications);
+            })
+            .catch(error => {
+                console.error('Error loading cloud medications:', error);
+                renderMedications(medications);
+            });
+    } else {
+        renderMedications(medications);
+    }
+}
+
+// Helper function to render medications
+function renderMedications(medications) {
+    const medicationList = document.querySelector('.medications-container');
+    if (!medicationList) return;
 
     if (medications.length === 0) {
         medicationList.innerHTML = '<p class="text-muted">No medications added yet.</p>';
@@ -1449,65 +1551,27 @@ function updateMedicationsUI() {
     }
 
     medicationList.innerHTML = medications
-        .map(med => {
-            const timesList = Array.isArray(med.times) ? med.times.map(time => `<span class="time">${time}</span>`).join('') : '';
-            return `
-                <div class="medication" data-id="${med.id}">
-                    <div class="medication-info">
-                        <h4>${med.name || ''}</h4>
-                        <p class="dosage">${med.dosage || ''}</p>
-                        <div class="schedule">
-                            ${timesList}
-                        </div>
-                        <p class="instructions">${med.instructions || ''}</p>
+        .map(med => `
+            <div class="medication" data-id="${med.id}">
+                <div class="medication-info">
+                    <h4>${med.name || ''}</h4>
+                    <p class="dosage">${med.dosage || ''}</p>
+                    <div class="schedule">
+                        ${Array.isArray(med.times) ? med.times.map(time => `<span class="time">${time}</span>`).join('') : ''}
                     </div>
-                    <div class="medication-actions">
-                        <button class="btn-icon delete delete-medication">
-                            <i data-lucide="trash-2"></i>
-                        </button>
-                    </div>
+                    <p class="instructions">${med.instructions || ''}</p>
                 </div>
-            `;
-        })
+                <div class="medication-actions">
+                    <button class="btn-icon delete delete-medication" onclick="deleteMedication(${med.id})">
+                        <i data-lucide="trash-2"></i>
+                    </button>
+                </div>
+            </div>
+        `)
         .join('');
 
     lucide.createIcons();
-
-    // Add delete button listeners
-    medicationList.querySelectorAll('.delete-medication').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            const medicationId = parseInt(e.target.closest('.medication').dataset.id);
-            if (confirm('Are you sure you want to delete this medication?')) {
-                deleteMedication(medicationId);
-            }
-        });
-    });
-}
-
-// Medication form handler
-function handleMedicationSubmit(e) {
-    e.preventDefault();
-    console.log('Form submitted');
-
-    const name = document.getElementById('medicationName').value;
-    const dosage = document.getElementById('dosage').value;
-    const timesInput = document.getElementById('times').value;
-    const times = timesInput ? timesInput.split(',').map(t => t.trim()).filter(t => t) : [];
-    const instructions = document.getElementById('instructions').value;
-
-    if (!name || !dosage || times.length === 0 || !instructions) {
-        alert('Please fill in all fields');
-        return;
-    }
-
-    const medicationData = { name, dosage, times, instructions };
-    console.log('Medication data:', medicationData);
-    
-    addMedication(medicationData);
-    hideModal('medicationModal');
-    
-    // Reset form
-    document.getElementById('medicationForm').reset();
+    updateAdherenceRate(medications);
 }
 
 // Reset medications
@@ -1610,15 +1674,7 @@ async function requestNotificationPermission() {
         return false;
     }
 
-    // Check if we already have the permission state stored
-    const storedPermission = localStorage.getItem('notificationPermission');
-    if (storedPermission === 'granted' || storedPermission === 'denied') {
-        return storedPermission === 'granted';
-    }
-
-    // If no stored permission, request it
     let permission = await Notification.requestPermission();
-    localStorage.setItem('notificationPermission', permission);
     return permission === 'granted';
 }
 
@@ -1702,9 +1758,8 @@ function scheduleAppointmentReminders(appointment) {
 }
 
 // Update addMedication function
-function addMedication(medicationData) {
-    const appData = loadAppData();
-    
+async function addMedication(medicationData) {
+    const appData = await loadAppData();
     const newMedication = {
         id: Date.now(),
         name: medicationData.name,
@@ -1716,7 +1771,7 @@ function addMedication(medicationData) {
     };
     
     appData.medications.push(newMedication);
-    saveAppData(appData);
+    await saveAppData(appData);
     
     // Schedule reminders for the new medication
     scheduleMedicationReminders(newMedication);
@@ -1726,8 +1781,8 @@ function addMedication(medicationData) {
 }
 
 // Update addAppointment function
-function addAppointment(appointmentData) {
-    const appData = loadAppData();
+async function addAppointment(appointmentData) {
+    const appData = await loadAppData();
     const newAppointment = {
         id: Date.now(),
         ...appointmentData,
@@ -1736,7 +1791,7 @@ function addAppointment(appointmentData) {
     
     appData.appointments = appData.appointments || [];
     appData.appointments.push(newAppointment);
-    saveAppData(appData);
+    await saveAppData(appData);
     
     // Schedule reminders for the new appointment
     scheduleAppointmentReminders(newAppointment);
@@ -1961,12 +2016,26 @@ function initializeSampleData() {
 }
 
 // Update loadAppData function to initialize sample data if no data exists
-function loadAppData() {
-    const storedData = localStorage.getItem('healthAppData');
-    if (!storedData) {
-        return initializeSampleData();
+async function loadAppData() {
+    // Always load local data first
+    const localData = JSON.parse(localStorage.getItem('healthAppData')) || initializeSampleData();
+    
+    // If user is signed in, try to merge with cloud data
+    const user = firebase.auth().currentUser;
+    if (user) {
+        try {
+            const doc = await db.collection('users').doc(user.uid).get();
+            if (doc.exists) {
+                const cloudData = doc.data();
+                // Merge cloud data with local data, preferring cloud data
+                return { ...localData, ...cloudData };
+            }
+        } catch (error) {
+            console.error('Error loading cloud data:', error);
+        }
     }
-    return JSON.parse(storedData);
+    
+    return localData;
 }
 
 // Add to your DOMContentLoaded event listener
@@ -1992,4 +2061,433 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeNotifications();
     
     // ... rest of your initialization code ...
+});
+
+// Add auth state observer
+firebase.auth().onAuthStateChanged(async (user) => {
+    if (user) {
+        console.log('User is signed in:', user.email);
+        await initializeUI(); // Load user's data when they sign in
+    } else {
+        console.log('User is signed out');
+        // Clear UI or show guest view
+    }
+});
+
+// Add this near the top of the file
+async function initializeUI() {
+    try {
+        const appData = await loadAppData();
+        updateMedicationsUI();
+        updateHealthMetricsUI();
+        updateAppointmentsUI();
+        updateAdherenceRate();
+        calculateWellnessScore();
+        
+        // Initialize charts
+        if (document.getElementById('dashboard-page').classList.contains('active')) {
+            initializeChart();
+        }
+    } catch (error) {
+        console.error('Error initializing UI:', error);
+    }
+}
+
+// Update loadAppData function
+async function loadAppData() {
+    // Always load local data first
+    const localData = JSON.parse(localStorage.getItem('healthAppData')) || initializeSampleData();
+    
+    // If user is signed in, try to merge with cloud data
+    const user = firebase.auth().currentUser;
+    if (user) {
+        try {
+            const doc = await db.collection('users').doc(user.uid).get();
+            if (doc.exists) {
+                const cloudData = doc.data();
+                // Merge cloud data with local data, preferring cloud data
+                return { ...localData, ...cloudData };
+            }
+        } catch (error) {
+            console.error('Error loading cloud data:', error);
+        }
+    }
+    
+    return localData;
+}
+
+// Update saveAppData function
+async function saveAppData(data) {
+    // Always save to localStorage
+    localStorage.setItem('healthAppData', JSON.stringify(data));
+    
+    // If user is signed in, also save to cloud
+    const user = firebase.auth().currentUser;
+    if (user) {
+        try {
+            await db.collection('users').doc(user.uid).set({
+                ...data,
+                lastUpdated: new Date()
+            }, { merge: true });
+        } catch (error) {
+            console.error('Error saving to cloud:', error);
+        }
+    }
+}
+
+// Update calculateWellnessScore function
+function calculateWellnessScore() {
+    let score = 85; // Base score
+    
+    try {
+        const appData = loadAppData();
+        if (!appData) return score;
+
+        let factors = 0;
+        
+        // Rest of your existing calculateWellnessScore code...
+    } catch (error) {
+        console.error('Error calculating wellness score:', error);
+        return score;
+    }
+}
+
+// Add auth state observer
+document.addEventListener('DOMContentLoaded', () => {
+    firebase.auth().onAuthStateChanged(async (user) => {
+        if (user) {
+            console.log('User is signed in:', user.email);
+            await initializeUI();
+        } else {
+            console.log('User is signed out');
+            // Show landing page or login prompt
+            navigateToPage('landing');
+        }
+    });
+});
+
+// Add real-time data listener
+function initializeRealtimeUpdates() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    // Listen for document changes
+    db.collection('users').doc(user.uid)
+        .onSnapshot((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                updateUIWithData(data);
+            }
+        }, (error) => {
+            console.error("Error listening to updates:", error);
+        });
+}
+
+// Update UI with data
+function updateUIWithData(data) {
+    // Update medications
+    if (data.medications) {
+        const medicationContainer = document.querySelector('.medications-container');
+        if (medicationContainer) {
+            medicationContainer.innerHTML = data.medications.map(med => `
+                <div class="medication" data-id="${med.id}">
+                    <div class="medication-info">
+                        <h4>${med.name}</h4>
+                        <p class="dosage">${med.dosage}</p>
+                        <div class="schedule">
+                            ${med.times.map(time => `<span class="time">${time}</span>`).join('')}
+                        </div>
+                        <p class="instructions">${med.instructions}</p>
+                    </div>
+                    <div class="medication-actions">
+                        <button class="btn-icon delete delete-medication">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+            attachMedicationEventListeners();
+        }
+    }
+
+    // Update appointments
+    if (data.appointments) {
+        const appointmentList = document.querySelector('.appointment-list');
+        if (appointmentList) {
+            appointmentList.innerHTML = data.appointments
+                .filter(apt => apt.status === 'upcoming')
+                .map(apt => `
+                    <div class="appointment" data-id="${apt.id}">
+                        <div class="appointment-info">
+                            <h4>${apt.doctorName}</h4>
+                            <p>${apt.specialty}</p>
+                            <p><i data-lucide="calendar"></i> ${apt.date}</p>
+                            <p><i data-lucide="clock"></i> ${apt.time}</p>
+                            <p><i data-lucide="map-pin"></i> ${apt.location}</p>
+                        </div>
+                        <div class="appointment-actions">
+                            <button class="btn-icon edit-appointment">
+                                <i data-lucide="edit-2"></i>
+                            </button>
+                            <button class="btn-icon delete delete-appointment">
+                                <i data-lucide="trash-2"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            lucide.createIcons();
+            attachAppointmentEventListeners();
+        }
+    }
+
+    // Update health metrics
+    if (data.healthMetrics) {
+        updateHealthMetricsDisplay(data.healthMetrics);
+    }
+}
+
+// Modify initializeUI function
+async function initializeUI() {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) return;
+
+        // Initialize real-time updates
+        initializeRealtimeUpdates();
+
+        // Initial data load
+        const doc = await db.collection('users').doc(user.uid).get();
+        if (doc.exists) {
+            updateUIWithData(doc.data());
+        }
+
+        // Initialize charts
+        if (document.getElementById('dashboard-page').classList.contains('active')) {
+            initializeChart();
+        }
+    } catch (error) {
+        console.error('Error initializing UI:', error);
+    }
+}
+
+// Update the addMedication function
+async function addMedication(medicationData) {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) {
+            console.error('No user signed in');
+            return;
+        }
+
+        const userDoc = await db.collection('users').doc(user.uid).get();
+        const userData = userDoc.data() || {};
+        const medications = userData.medications || [];
+
+        const newMedication = {
+            id: Date.now(),
+            ...medicationData,
+            status: 'active',
+            dateAdded: new Date().toISOString()
+        };
+
+        medications.push(newMedication);
+
+        await db.collection('users').doc(user.uid).update({
+            medications: medications
+        });
+
+        // UI will be updated automatically through the realtime listener
+        hideModal('medicationModal');
+    } catch (error) {
+        console.error('Error adding medication:', error);
+        alert('Failed to add medication. Please try again.');
+    }
+}
+
+// Similar updates for addAppointment and addHealthMetric functions
+// ... rest of your existing code ...
+
+// Add these functions for appointment management
+async function handleAppointmentSubmit(e) {
+    e.preventDefault();
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    try {
+        const appointmentData = {
+            doctorName: document.getElementById('doctorName').value,
+            specialty: document.getElementById('specialty').value,
+            date: document.getElementById('appointmentDate').value,
+            time: document.getElementById('appointmentTime').value,
+            location: document.getElementById('location').value,
+            status: 'upcoming',
+            createdAt: new Date().toISOString(),
+            userId: user.uid
+        };
+
+        // Get current appointments array
+        const doc = await db.collection('users').doc(user.uid).get();
+        const userData = doc.data() || {};
+        const appointments = userData.appointments || [];
+        
+        // Add new appointment
+        appointments.push({
+            id: Date.now(),
+            ...appointmentData
+        });
+
+        // Update Firestore
+        await db.collection('users').doc(user.uid).update({
+            appointments: appointments
+        });
+
+        hideModal('appointmentModal');
+        await updateAppointmentsUI(); // Refresh UI
+    } catch (error) {
+        console.error('Error adding appointment:', error);
+        alert('Failed to add appointment. Please try again.');
+    }
+}
+
+// Update the appointments UI function
+async function updateAppointmentsUI() {
+    const appointmentList = document.querySelector('.appointment-list');
+    if (!appointmentList) return;
+
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    try {
+        const doc = await db.collection('users').doc(user.uid).get();
+        const userData = doc.data() || {};
+        const appointments = userData.appointments || [];
+
+        // Filter upcoming appointments and sort by date
+        const upcomingAppointments = appointments
+            .filter(apt => apt.status === 'upcoming')
+            .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        if (upcomingAppointments.length === 0) {
+            appointmentList.innerHTML = '<p class="text-muted">No upcoming appointments</p>';
+            return;
+        }
+
+        appointmentList.innerHTML = upcomingAppointments
+            .map(apt => `
+                <div class="appointment" data-id="${apt.id}">
+                    <div class="appointment-info">
+                        <h4>${apt.doctorName}</h4>
+                        <p>${apt.specialty}</p>
+                        <p><i data-lucide="calendar"></i> ${apt.date}</p>
+                        <p><i data-lucide="clock"></i> ${apt.time}</p>
+                        <p><i data-lucide="map-pin"></i> ${apt.location}</p>
+                    </div>
+                    <div class="appointment-actions">
+                        <button class="btn-icon edit-appointment" onclick="editAppointment(${apt.id})">
+                            <i data-lucide="edit-2"></i>
+                        </button>
+                        <button class="btn-icon delete delete-appointment" onclick="deleteAppointment(${apt.id})">
+                            <i data-lucide="trash-2"></i>
+                        </button>
+                    </div>
+                </div>
+            `)
+            .join('');
+
+        // Reinitialize icons
+        lucide.createIcons();
+    } catch (error) {
+        console.error('Error updating appointments UI:', error);
+    }
+}
+
+// Update delete appointment function
+async function deleteAppointment(id) {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    if (confirm('Are you sure you want to delete this appointment?')) {
+        try {
+            const doc = await db.collection('users').doc(user.uid).get();
+            const userData = doc.data() || {};
+            const appointments = userData.appointments || [];
+
+            // Filter out the deleted appointment
+            const updatedAppointments = appointments.filter(apt => apt.id !== id);
+
+            // Update Firestore
+            await db.collection('users').doc(user.uid).update({
+                appointments: updatedAppointments
+            });
+
+            await updateAppointmentsUI(); // Refresh UI
+        } catch (error) {
+            console.error('Error deleting appointment:', error);
+            alert('Failed to delete appointment. Please try again.');
+        }
+    }
+}
+
+// Add real-time listener for appointments
+function initializeAppointmentsListener() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+
+    // Listen for changes to the user's document
+    db.collection('users').doc(user.uid)
+        .onSnapshot((doc) => {
+            if (doc.exists) {
+                const data = doc.data();
+                if (data.appointments) {
+                    updateAppointmentsUI();
+                }
+            }
+        }, (error) => {
+            console.error("Error listening to appointment updates:", error);
+        });
+}
+
+// Update initialization
+async function initializeUI() {
+    try {
+        const user = firebase.auth().currentUser;
+        if (!user) return;
+
+        // Initialize real-time updates for appointments
+        initializeAppointmentsListener();
+
+        // Initial load of appointments
+        await updateAppointmentsUI();
+
+        // Initialize other UI elements...
+        // ...existing initialization code...
+    } catch (error) {
+        console.error('Error initializing UI:', error);
+    }
+}
+
+// Keep BMI calculator using local storage
+function handleBMICalculation(e) {
+    // ...existing BMI calculation code...
+    // This can stay the same as it uses local storage
+}
+
+// Update the event listeners
+document.addEventListener('DOMContentLoaded', () => {
+    // ...existing code...
+
+    // Update appointment form listener
+    const appointmentForm = document.getElementById('appointmentForm');
+    if (appointmentForm) {
+        appointmentForm.addEventListener('submit', handleAppointmentSubmit);
+    }
+
+    // Add appointment button
+    const addAppointmentBtn = document.querySelector('.appointments .btn-icon');
+    if (addAppointmentBtn) {
+        addAppointmentBtn.addEventListener('click', () => {
+            showModal('appointmentModal');
+        });
+    }
 });

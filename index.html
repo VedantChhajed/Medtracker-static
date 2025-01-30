@@ -7,27 +7,57 @@
     <link rel="stylesheet" href="css/styles.css">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Add pdfmake for PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
-    <!-- Add SheetJS for Excel export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <style>
+        .auth-area {
+            position: absolute;
+            top: 2rem;
+            right: max(2rem, calc((100% - 1200px) / 2));
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-info {
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.5rem 1rem;
+            border-radius: 100px;
+            color: var(--text-light);
+        }
+
+        .user-info.visible {
+            display: flex;
+        }
+
+        .sign-in-button.hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body class="dark-mode">
-    <!-- Header with Auth Button -->
-    <header class="app-header">
-        <div class="header-content">
-            <div class="logo">
-                <i data-lucide="heart"></i>
-                <span>Health Journey</span>
-            </div>
-            <a href="auth.html" class="btn btn-primary auth-btn">
-                <i data-lucide="log-in"></i>
-                Sign In
-            </a>
+    <div class="auth-area">
+        <div class="user-info">
+            <i data-lucide="user" width="20" height="20"></i>
+            <span id="userName"></span>
+            <button class="btn-icon" onclick="signOut()">
+                <i data-lucide="log-out" width="20" height="20"></i>
+            </button>
         </div>
-    </header>
-    <!-- Bottom Navigation -->
+        <button class="btn btn-primary sign-in-button" onclick="window.location.href='auth.html'">
+            <i data-lucide="log-in"></i>
+            Sign In
+        </button>
+    </div>
+
     <nav class="main-nav">
         <div class="nav-content">
             <a href="#" class="nav-link active" data-page="dashboard">
@@ -50,7 +80,6 @@
     </nav>
 
     <main id="app">
-        <!-- Landing Page -->
         <section id="landing-page" class="page active">
             <div class="hero">
                 <div class="heart-icon">
@@ -80,7 +109,6 @@
             </div>
         </section>
 
-        <!-- Dashboard Page -->
         <section id="dashboard-page" class="page">
             <header class="page-header">
                 <h1>Welcome Back!</h1>
@@ -165,7 +193,6 @@
             </div>
         </section>
 
-        <!-- Medications Page -->
         <section id="medications-page" class="page">
             <header class="page-header">
                 <h1>Medications</h1>
@@ -218,7 +245,6 @@
             </div>
         </section>
 
-        <!-- Health Page -->
         <section id="health-page" class="page">
             <header class="page-header">
                 <h2>Health Tracker</h2>
@@ -226,7 +252,6 @@
             </header>
 
             <div class="health-grid">
-                <!-- BMI Calculator -->
                 <div class="card bmi-calculator">
                     <div class="card-header">
                         <h3>
@@ -254,7 +279,6 @@
                     </form>
                 </div>
 
-                <!-- Health Metrics -->
                 <div class="card">
                     <div class="card-header">
                         <h3>
@@ -282,7 +306,6 @@
                     </div>
                 </div>
 
-                <!-- Health Chart -->
                 <div class="card">
                     <div class="card-header">
                         <h3>
@@ -293,7 +316,6 @@
                     <canvas id="healthChart"></canvas>
                 </div>
 
-                <!-- Quick Actions -->
                 <div class="card">
                     <div class="card-header">
                         <h3>
@@ -315,7 +337,6 @@
             </div>
         </section>
 
-        <!-- Settings Page -->
         <section id="settings-page" class="page">
             <header class="page-header">
                 <h2>Settings</h2>
@@ -323,7 +344,6 @@
             </header>
 
             <div class="settings-grid">
-                <!-- Notification Settings -->
                 <div class="card">
                     <div class="card-header">
                         <h3>
@@ -365,7 +385,6 @@
                     </div>
                 </div>
 
-                <!-- Preferences -->
                 <div class="card">
                     <div class="card-header">
                         <h3>
@@ -387,7 +406,6 @@
                     </div>
                 </div>
 
-                <!-- Data Management -->
                 <div class="card">
                     <div class="card-header">
                         <h3>
@@ -427,7 +445,6 @@
             </div>
         </section>
 
-        <!-- Fix alignment in existing sections -->
         <style>
             .page {
                 padding: 2rem max(1rem, calc((100% - 1200px) / 2));
@@ -491,7 +508,6 @@
                 font-size: 0.875rem;
             }
 
-            /* Settings Page */
             .settings-grid {
                 display: grid;
                 gap: 1.5rem;
@@ -511,7 +527,6 @@
                 }
             }
 
-            /* Toggle Switch */
             .toggle {
                 position: relative;
                 display: inline-block;
@@ -557,7 +572,6 @@
                 transform: translateX(24px);
             }
 
-            /* Select Input */
             .select-input {
                 padding: 0.75rem 1rem;
                 border: 1px solid rgba(255, 255, 255, 0.1);
@@ -584,11 +598,69 @@
 
     <script src="js/app.js"></script>
     <script>
+        // Initialize Firebase (place this before any other Firebase code)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCMeyE6ashXBGg3CbLUHOZm0NrdW2ekaT8",
+            authDomain: "medtracker-ce3e4.firebaseapp.com",
+            projectId: "medtracker-ce3e4",
+            storageBucket: "medtracker-ce3e4.firebasestorage.app",
+            messagingSenderId: "964873724883",
+            appId: "1:964873724883:web:74b1e7ef71ba0836a34526"
+        };
+
+        // Initialize Firebase
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Enable offline persistence
+        db.enablePersistence()
+            .catch((err) => {
+                if (err.code == 'failed-precondition') {
+                    console.log('Multiple tabs open, persistence can only be enabled in one tab at a a time.');
+                } else if (err.code == 'unimplemented') {
+                    console.log('The current browser does not support persistence.');
+                }
+            });
+
+        // Auth state observer
+        auth.onAuthStateChanged(async function(user) {
+            console.log('Auth state changed:', user);
+            const signInButton = document.querySelector('.sign-in-button');
+            const userInfo = document.querySelector('.user-info');
+            const userNameElement = document.getElementById('userName');
+
+            if (user) {
+                console.log('User is signed in:', user.email);
+                signInButton.classList.add('hidden');
+                userInfo.classList.add('visible');
+                userNameElement.textContent = user.email;
+                
+                // Initialize UI with user's data
+                await initializeUI();
+            } else {
+                console.log('User is signed out');
+                signInButton.classList.remove('hidden');
+                userInfo.classList.remove('visible');
+                userNameElement.textContent = '';
+            }
+        });
+
+        // Sign out function
+        function signOut() {
+            auth.signOut().then(() => {
+                window.location.href = 'auth.html';
+            }).catch((error) => {
+                console.error('Sign out error:', error);
+            });
+        }
+
         // Initialize Lucide icons
         lucide.createIcons();
     </script>
 
-    <!-- Appointment Modal -->
     <div id="appointmentModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -626,7 +698,6 @@
         </div>
     </div>
 
-    <!-- Add Health Log Modal -->
     <div id="healthLogModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -659,7 +730,6 @@
         </div>
     </div>
 
-    <!-- Medication Modal -->
     <div id="medicationModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
