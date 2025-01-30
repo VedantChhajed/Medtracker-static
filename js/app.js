@@ -1,3 +1,65 @@
+// Firebase Initialization
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+import { getAuth, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCMeyE6ashXBGg3CbLUHOZm0NrdW2ekaT8",
+  authDomain: "medtracker-ce3e4.firebaseapp.com",
+  projectId: "medtracker-ce3e4",
+  storageBucket: "medtracker-ce3e4.firebasestorage.app",
+  messagingSenderId: "964873724883",
+  appId: "1:964873724883:web:74b1e7ef71ba0836a34526"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
+// Handle Authentication
+document.addEventListener('DOMContentLoaded', () => {
+    const authForm = document.getElementById('auth-form');
+    const googleSignInButton = document.getElementById('googleSignIn');
+
+    if (googleSignInButton) {
+        googleSignInButton.addEventListener('click', async () => {
+            try {
+                await signInWithPopup(auth, provider);
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Google Sign In Error:', error);
+                alert('Error: ' + error.message);
+            }
+        });
+    }
+    if (authForm) {
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                await signInWithEmailAndPassword(auth, email, password);
+                window.location.href = 'index.html';
+            } catch (error) {
+                console.error('Authentication error:', error);
+                alert('Error: ' + error.message);
+            }
+        });
+    }
+
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            if (window.location.pathname.includes('auth.html')) {
+                window.location.href = 'index.html';
+            }
+        } else {
+            if (!window.location.pathname.includes('auth.html')) {
+                window.location.href = 'auth.html';
+            }
+        }
+    });
+});
+
 // Navigation
 function navigateToPage(pageId) {
     // If we're on landing page and clicking dashboard, or clicking home/dashboard from anywhere
@@ -1548,7 +1610,15 @@ async function requestNotificationPermission() {
         return false;
     }
 
+    // Check if we already have the permission state stored
+    const storedPermission = localStorage.getItem('notificationPermission');
+    if (storedPermission === 'granted' || storedPermission === 'denied') {
+        return storedPermission === 'granted';
+    }
+
+    // If no stored permission, request it
     let permission = await Notification.requestPermission();
+    localStorage.setItem('notificationPermission', permission);
     return permission === 'granted';
 }
 
@@ -1922,4 +1992,4 @@ document.addEventListener('DOMContentLoaded', () => {
     initializeNotifications();
     
     // ... rest of your initialization code ...
-}); 
+});
