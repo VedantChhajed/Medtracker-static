@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Health Journey is a modern web application designed to help users manage their medications, track health metrics, and maintain their overall wellness. The application features a responsive, single-page design with real-time updates and interactive visualizations.
+MedTracker Journey is a modern web application designed to help users manage their medications, track health metrics, and maintain their overall wellness. The application features a responsive, single-page design with real-time updates and interactive visualizations.
 
 ## Development Journey
 
