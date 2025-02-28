@@ -181,12 +181,22 @@ body {
 .dashboard-grid {
     display: grid;
     gap: 1.25rem;
-    grid-template-columns: 350px 1fr;
-    grid-template-rows: auto auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    height: calc(100vh - 8rem);
+    height: auto;
+    padding: 1rem;
+}
+
+@media (min-width: 768px) {
+    .dashboard-grid {
+        grid-template-columns: 350px 1fr;
+        grid-template-rows: auto auto;
+        height: calc(100vh - 8rem);
+        padding: 0;
+    }
 }
 
 .wellness-score {
@@ -640,7 +650,8 @@ body {
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    height: calc(100vh - 12rem);
+    height: auto;
+    padding-bottom: 5rem;
 }
 
 .medications-top {
@@ -651,35 +662,87 @@ body {
 
 .medication-list {
     flex: 1;
-    min-height: 0;
     display: flex;
     flex-direction: column;
+    height: auto;
+    min-height: 400px;
+    max-height: 600px;
+    overflow: hidden;
+    margin-bottom: 1rem;
 }
 
 .medications-container {
     flex: 1;
     overflow-y: auto;
     padding: 1rem;
+    height: auto;
+    min-height: 350px;
+    max-height: 500px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--primary-color) var(--card-dark);
+}
+
+.medications-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.medications-container::-webkit-scrollbar-track {
+    background: var(--card-dark);
+    border-radius: 4px;
+}
+
+.medications-container::-webkit-scrollbar-thumb {
+    background-color: var(--primary-color);
+    border-radius: 4px;
+    border: 2px solid var(--card-dark);
 }
 
 .medication {
-    padding: 1.5rem;
+    background-color: var(--hover-bg);
+    border: 1px solid var(--border-color);
     border-radius: 12px;
-    background-color: rgba(255, 255, 255, 0.05);
+    padding: 1rem;
     margin-bottom: 1rem;
     display: flex;
+    flex-direction: row;
     justify-content: space-between;
-    align-items: flex-start;
-    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.medication-info {
+    flex: 1;
+    padding-right: 1rem;
 }
 
 .medication:last-child {
     margin-bottom: 0;
 }
 
-.medication:hover {
-    transform: translateY(-2px);
-    background-color: rgba(255, 255, 255, 0.08);
+/* Media queries for responsive layout */
+@media (min-width: 768px) {
+    .medications-grid {
+        height: auto;
+    }
+    
+    .medication-list {
+        min-height: 450px;
+        max-height: 650px;
+    }
+    
+    .medications-container {
+        min-height: 400px;
+        max-height: 550px;
+    }
+}
+
+@media (max-width: 767px) {
+    .medications-top {
+        grid-template-columns: 1fr;
+    }
+    
+    .medication-list {
+        min-height: 350px;
+    }
 }
 
 .adherence, .quick-actions {
@@ -824,7 +887,7 @@ body {
 .btn-secondary {
     background-color: transparent;
     border: 1px solid rgba(255, 255, 255, 0.1);
-    color: var(--text-light);
+    color: var (--text-light);
 }
 
 .btn-secondary:hover {
@@ -1732,4 +1795,4 @@ input:focus, select:focus, textarea:focus {
     background-color: var(--card-dark);
     border-top: 1px solid var(--border-color);
     box-shadow: 0 -4px 12px var(--shadow-color);
-} 
+}

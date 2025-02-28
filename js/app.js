@@ -34,6 +34,12 @@ function navigateToPage(pageId) {
             initializeHealthChart();
             document.querySelector('.metrics-chart')?.classList.add('visible');
         }, 100);
+    } else if (pageId === 'medications') {
+        setTimeout(() => {
+            // Ensure medications are loaded and displayed
+            updateMedicationsUI();
+            updateAdherenceRate();
+        }, 100);
     }
 
     // Update navigation
@@ -49,22 +55,22 @@ function navigateToPage(pageId) {
 function initializeChart() {
     const ctx = document.getElementById('metricsChart');
     if (!ctx) return;
-
     const appData = loadAppData();
     const healthMetrics = appData.healthMetrics || {};
     const lastWeek = new Date();
     lastWeek.setDate(lastWeek.getDate() - 7);
-
+    
     // Get labels for last 7 days
     const labels = Array.from({length: 7}, (_, i) => {
         const date = new Date(lastWeek);
         date.setDate(date.getDate() + i);
         return date.toLocaleDateString('en-US', { weekday: 'short' });
     });
-
+    
     // Process data for each metric type
     const datasets = [];
     
+    // Blood Pressure data
     if (healthMetrics.bloodPressure && healthMetrics.bloodPressure.length > 0) {
         const bpData = getMetricDataForLastWeek(healthMetrics.bloodPressure, 'systolic');
         datasets.push({
@@ -76,8 +82,20 @@ function initializeChart() {
             fill: true,
             hidden: false
         });
+    } else {
+        // Mock blood pressure data if none exists
+        datasets.push({
+            label: 'Blood Pressure',
+            data: [125, 128, 120, 118, 122, 119, 117],
+            borderColor: '#3B82F6',
+            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+            tension: 0.4,
+            fill: true,
+            hidden: false
+        });
     }
-
+    
+    // Glucose data
     if (healthMetrics.glucose && healthMetrics.glucose.length > 0) {
         const glucoseData = getMetricDataForLastWeek(healthMetrics.glucose);
         datasets.push({
@@ -89,14 +107,74 @@ function initializeChart() {
             fill: true,
             hidden: false
         });
+    } else {
+        // Mock glucose data if none exists
+        datasets.push({
+            label: 'Glucose',
+            data: [114, 118, 107, 110, 105, 102, 100],
+            borderColor: '#22C55E',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
+            tension: 0.4,
+            fill: true,
+            hidden: false
+        });
     }
-
+    
+    // Weight data
+    if (healthMetrics.weight && healthMetrics.weight.length > 0) {
+        const weightData = getMetricDataForLastWeek(healthMetrics.weight);
+        datasets.push({
+            label: 'Weight',
+            data: weightData,
+            borderColor: '#F59E0B',
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            tension: 0.4,
+            fill: true,
+            hidden: false
+        });
+    } else {
+        // Mock weight data if none exists
+        datasets.push({
+            label: 'Weight',
+            data: [76.5, 76.2, 76.0, 75.8, 75.5, 75.2, 75.0],
+            borderColor: '#F59E0B',
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            tension: 0.4,
+            fill: true,
+            hidden: false
+        });
+    }
+    
+    // Temperature data
+    if (healthMetrics.temperature && healthMetrics.temperature.length > 0) {
+        const tempData = getMetricDataForLastWeek(healthMetrics.temperature);
+        datasets.push({
+            label: 'Temperature',
+            data: tempData,
+            borderColor: '#EF4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            tension: 0.4,
+            fill: true,
+            hidden: false
+        });
+    } else {
+        // Mock temperature data if none exists
+        datasets.push({
+            label: 'Temperature',
+            data: [36.8, 36.9, 36.7, 36.6, 36.7, 36.5, 36.6],
+            borderColor: '#EF4444',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            tension: 0.4,
+            fill: true,
+            hidden: false
+        });
+    }
+    
     // Create or update chart
     const existingChart = Chart.getChart(ctx);
     if (existingChart) {
         existingChart.destroy();
     }
-
     const newChart = new Chart(ctx, {
         type: 'line',
         data: {
@@ -143,7 +221,7 @@ function initializeChart() {
             }
         }
     });
-
+    
     // Add click handlers for metric tabs
     const tabs = document.querySelectorAll('.metrics-tabs button');
     tabs.forEach(tab => {
@@ -1154,9 +1232,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load initial data
     const appData = loadAppData();
+    
+    // Force immediate load of medications data - ensure it's available right away
+    updateMedicationsUI();
+    
+    // Initialize other UI elements
     updateAppointmentsUI();
     updateHealthMetricsUI();
-
+    updateAdherenceRate();
+    
     // Add click handlers for buttons
     const addAppointmentBtn = document.querySelector('.appointments .btn-icon');
     if (addAppointmentBtn) {
@@ -1176,6 +1260,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize the dashboard if it's the active page
     if (document.getElementById('dashboard-page').classList.contains('active')) {
         initializeChart();
+    }
+    
+    // Check if medications page is active and initialize if needed
+    if (document.getElementById('medications-page').classList.contains('active')) {
+        updateMedicationsUI();
+        updateAdherenceRate();
     }
 });
 
@@ -2490,4 +2580,520 @@ document.addEventListener('DOMContentLoaded', () => {
             showModal('appointmentModal');
         });
     }
+});
+
+// BMI Calculator initialization - Specific fix for redirect issue
+document.addEventListener('DOMContentLoaded', () => {
+    // Find the BMI form
+    const bmiForm = document.getElementById('bmiForm');
+    
+    // Remove any existing event listeners and attach a new one
+    if (bmiForm) {
+        // Create a new cloned form element to remove any existing event listeners
+        const newForm = bmiForm.cloneNode(true);
+        bmiForm.parentNode.replaceChild(newForm, bmiForm);
+        
+        // Add our event listener with strong prevention of default behavior
+        newForm.addEventListener('submit', function(e) {
+            // First immediately prevent default behavior
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Get form values
+            const height = parseFloat(document.getElementById('height').value);
+            const weight = parseFloat(document.getElementById('weight').value);
+            
+            // Validate input
+            if (!height || !weight) {
+                alert('Please enter both height and weight');
+                return;
+            }
+            
+            // Get the current unit system
+            const appData = loadAppData();
+            const unit = appData.settings?.units || 'metric';
+            
+            // Calculate BMI
+            const bmi = calculateBMI(height, weight, unit);
+            const { category, color } = getBMICategory(bmi);
+            
+            // Update UI
+            const resultElement = document.querySelector('.bmi-result');
+            if (resultElement) {
+                resultElement.innerHTML = `
+                    <div class="result-value" style="color: ${color}">
+                        ${bmi.toFixed(1)}
+                    </div>
+                    <div class="result-category" style="color: ${color}">
+                        ${category}
+                    </div>
+                    <div class="result-explanation">
+                        Your BMI indicates that you are in the ${category.toLowerCase()} range.
+                    </div>
+                `;
+                resultElement.style.display = 'block';
+            }
+            
+            // Save to local storage
+            const healthLogs = appData.healthLogs || [];
+            
+            healthLogs.push({
+                date: new Date().toISOString(),
+                type: 'BMI',
+                value: parseFloat(bmi.toFixed(1)),
+                category: category,
+                measurements: { height, weight }
+            });
+            
+            appData.healthLogs = healthLogs;
+            localStorage.setItem('healthAppData', JSON.stringify(appData));
+            
+            // Update BMI metric display
+            const bmiMetric = document.querySelector('.metric-bmi .metric-value');
+            if (bmiMetric) {
+                bmiMetric.textContent = bmi.toFixed(1);
+            }
+            
+            // Return false to be extra safe
+            return false;
+        });
+        
+        console.log("BMI calculator initialized with redirect prevention");
+    }
+});
+
+// Add these notification functions at the end of the file
+
+// Notification System
+let notifications = [];
+const notificationTypes = {
+    MEDICATION: 'medication',
+    HEALTH: 'health',
+    APPOINTMENT: 'appointment'
+};
+
+// Initialize notification system
+function initializeNotifications() {
+    // Load existing notifications from localStorage
+    loadNotifications();
+    
+    // Setup notification toggle button
+    const notificationToggleBtn = document.getElementById('notification-toggle');
+    const closeNotificationsBtn = document.getElementById('close-notifications');
+    const notificationCenter = document.getElementById('notification-center');
+    
+    if (notificationToggleBtn) {
+        notificationToggleBtn.addEventListener('click', () => {
+            notificationCenter.classList.toggle('active');
+            updateNotificationBadge(0); // Clear badge when opening notifications
+        });
+    }
+    
+    if (closeNotificationsBtn) {
+        closeNotificationsBtn.addEventListener('click', () => {
+            notificationCenter.classList.remove('active');
+        });
+    }
+    
+    // Generate sample notifications for demo
+    generateSampleNotifications();
+    
+    // Schedule notification checks
+    setInterval(checkForDueNotifications, 60000); // Check every minute
+}
+
+// Load notifications from localStorage
+function loadNotifications() {
+    try {
+        const savedNotifications = localStorage.getItem('healthAppNotifications');
+        if (savedNotifications) {
+            notifications = JSON.parse(savedNotifications);
+            renderNotifications();
+            updateNotificationBadge();
+        }
+    } catch (error) {
+        console.error('Error loading notifications:', error);
+    }
+}
+
+// Save notifications to localStorage
+function saveNotifications() {
+    try {
+        localStorage.setItem('healthAppNotifications', JSON.stringify(notifications));
+    } catch (error) {
+        console.error('Error saving notifications:', error);
+    }
+}
+
+// Add a new notification
+function addNotification(type, title, message, time = new Date(), actions = [], id = Date.now()) {
+    const notification = {
+        id,
+        type,
+        title,
+        message,
+        time: time instanceof Date ? time.toISOString() : time,
+        read: false,
+        actions
+    };
+    
+    notifications.unshift(notification); // Add to the beginning
+    
+    // Limit to 20 notifications to prevent storage issues
+    if (notifications.length > 20) {
+        notifications = notifications.slice(0, 20);
+    }
+    
+    saveNotifications();
+    renderNotifications();
+    updateNotificationBadge();
+    
+    // Show a system notification if supported
+    showSystemNotification(title, message);
+    
+    return notification;
+}
+
+// Mark a notification as read
+function markNotificationAsRead(id) {
+    const notification = notifications.find(n => n.id === id);
+    if (notification) {
+        notification.read = true;
+        saveNotifications();
+        renderNotifications();
+        updateNotificationBadge();
+    }
+}
+
+// Delete a notification
+function deleteNotification(id) {
+    notifications = notifications.filter(n => n.id !== id);
+    saveNotifications();
+    renderNotifications();
+    updateNotificationBadge();
+}
+
+// Render notifications in the notification center
+function renderNotifications() {
+    const notificationList = document.querySelector('.notification-list');
+    if (!notificationList) return;
+    
+    if (notifications.length === 0) {
+        notificationList.innerHTML = '<div class="notification-empty">No notifications</div>';
+        return;
+    }
+    
+    notificationList.innerHTML = notifications
+        .map(notification => {
+            const date = new Date(notification.time);
+            const timeFormatted = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const dateFormatted = date.toLocaleDateString();
+            
+            const actionsHtml = notification.actions.length > 0 
+                ? `<div class="actions">${notification.actions.map(action => 
+                    `<button class="btn btn-sm" data-action="${action.action}" data-id="${notification.id}">${action.label}</button>`
+                  ).join('')}</div>` 
+                : '';
+            
+            return `
+                <div class="notification-item ${notification.type} ${notification.read ? 'read' : ''}" data-id="${notification.id}">
+                    <div class="title">${notification.title}</div>
+                    <div class="message">${notification.message}</div>
+                    <div class="time">${timeFormatted} - ${dateFormatted}</div>
+                    ${actionsHtml}
+                    <button class="btn-icon delete-notification" data-id="${notification.id}">
+                        <i data-lucide="trash-2" width="16" height="16"></i>
+                    </button>
+                </div>
+            `;
+        })
+        .join('');
+    
+    // Add event listeners for notification actions
+    document.querySelectorAll('.notification-item').forEach(item => {
+        // Mark as read on click
+        item.addEventListener('click', () => {
+            markNotificationAsRead(parseInt(item.dataset.id));
+        });
+    });
+    
+    // Delete notification buttons
+    document.querySelectorAll('.delete-notification').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent triggering the parent click
+            deleteNotification(parseInt(btn.dataset.id));
+        });
+    });
+    
+    // Action buttons
+    document.querySelectorAll('.notification-item .actions button').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent triggering the parent click
+            const action = btn.dataset.action;
+            const id = parseInt(btn.dataset.id);
+            handleNotificationAction(id, action);
+        });
+    });
+    
+    // Re-initialize Lucide icons
+    lucide.createIcons();
+}
+
+// Update the notification badge
+function updateNotificationBadge(count) {
+    const badge = document.querySelector('.notification-badge');
+    if (!badge) return;
+    
+    const unreadCount = count !== undefined ? count : notifications.filter(n => !n.read).length;
+    
+    if (unreadCount > 0) {
+        badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// Show a system notification if supported
+function showSystemNotification(title, message) {
+    if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification(title, {
+            body: message,
+            icon: '/favicon.ico'
+        });
+    } else if ('Notification' in window && Notification.permission !== 'denied') {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                new Notification(title, {
+                    body: message,
+                    icon: '/favicon.ico'
+                });
+            }
+        });
+    }
+}
+
+// Handle notification action buttons
+function handleNotificationAction(id, action) {
+    const notification = notifications.find(n => n.id === id);
+    if (!notification) return;
+    
+    switch (action) {
+        case 'take-medication':
+            // Mark medication as taken
+            markNotificationAsRead(id);
+            alert(`Marked ${notification.title} as taken`);
+            break;
+            
+        case 'view-appointment':
+            // Navigate to appointments page
+            markNotificationAsRead(id);
+            navigateToPage('dashboard');
+            break;
+            
+        case 'view-health':
+            // Navigate to health page
+            markNotificationAsRead(id);
+            navigateToPage('health');
+            break;
+            
+        case 'dismiss':
+            // Just mark as read
+            markNotificationAsRead(id);
+            break;
+    }
+}
+
+// Generate medication reminder notification
+function createMedicationReminder(medicationName, dosage, time) {
+    const now = new Date();
+    const reminderTime = time || now;
+    
+    return addNotification(
+        notificationTypes.MEDICATION,
+        'Medication Reminder',
+        `Time to take ${medicationName} - ${dosage}`,
+        reminderTime,
+        [
+            { label: 'Take Now', action: 'take-medication' },
+            { label: 'Dismiss', action: 'dismiss' }
+        ]
+    );
+}
+
+// Generate health alert notification
+function createHealthAlert(metricType, value, threshold, alertType = 'high') {
+    const now = new Date();
+    
+    let message = '';
+    switch (metricType) {
+        case 'bloodPressure':
+            message = `Your blood pressure reading of ${value} is ${alertType} than recommended. Please check with your doctor.`;
+            break;
+        case 'glucose':
+            message = `Your glucose reading of ${value} mg/dL is ${alertType} than the normal range. Monitor closely.`;
+            break;
+        case 'weight':
+            message = `Your weight has changed by ${Math.abs(value)} kg. This is a ${alertType} fluctuation.`;
+            break;
+        case 'temperature':
+            message = `Your temperature of ${value}°C is ${alertType === 'high' ? 'elevated' : 'low'}. Monitor for other symptoms.`;
+            break;
+        default:
+            message = `Your ${metricType} reading is outside the normal range.`;
+    }
+    
+    return addNotification(
+        notificationTypes.HEALTH,
+        `Health Alert: ${metricType.charAt(0).toUpperCase() + metricType.slice(1)}`,
+        message,
+        now,
+        [
+            { label: 'View Details', action: 'view-health' },
+            { label: 'Dismiss', action: 'dismiss' }
+        ]
+    );
+}
+
+// Generate appointment reminder notification
+function createAppointmentReminder(doctorName, speciality, date, time, location) {
+    const appointmentDate = new Date(`${date}T${time}`);
+    const now = new Date();
+    
+    // Calculate days until appointment
+    const daysUntil = Math.ceil((appointmentDate - now) / (1000 * 60 * 60 * 24));
+    let message = '';
+    
+    if (daysUntil > 1) {
+        message = `You have an appointment with Dr. ${doctorName} (${speciality}) in ${daysUntil} days on ${new Date(date).toLocaleDateString()} at ${time}.`;
+    } else if (daysUntil === 1) {
+        message = `You have an appointment with Dr. ${doctorName} (${speciality}) tomorrow at ${time}.`;
+    } else {
+        const hoursUntil = Math.ceil((appointmentDate - now) / (1000 * 60 * 60));
+        if (hoursUntil > 1) {
+            message = `You have an appointment with Dr. ${doctorName} (${speciality}) in ${hoursUntil} hours at ${location}.`;
+        } else {
+            message = `You have an appointment with Dr. ${doctorName} (${speciality}) in less than an hour at ${location}.`;
+        }
+    }
+    
+    return addNotification(
+        notificationTypes.APPOINTMENT,
+        'Appointment Reminder',
+        message,
+        now,
+        [
+            { label: 'View Details', action: 'view-appointment' },
+            { label: 'Dismiss', action: 'dismiss' }
+        ]
+    );
+}
+
+// Generate sample notifications for demo
+function generateSampleNotifications() {
+    // Only generate sample notifications if we don't have any yet
+    if (notifications.length === 0) {
+        // Medication reminders
+        createMedicationReminder('Lisinopril', '10mg');
+        
+        setTimeout(() => {
+            createMedicationReminder('Metformin', '500mg');
+        }, 500);
+        
+        // Health alerts
+        setTimeout(() => {
+            createHealthAlert('bloodPressure', '145/92', 140, 'high');
+        }, 1000);
+        
+        // Appointment reminder
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = tomorrow.toISOString().split('T')[0];
+        
+        setTimeout(() => {
+            createAppointmentReminder('Sarah Johnson', 'Cardiologist', tomorrowStr, '10:30', 'Heart Care Center');
+        }, 1500);
+    }
+}
+
+// Check for notifications that should be triggered based on time
+function checkForDueNotifications() {
+    const appData = JSON.parse(localStorage.getItem('healthAppData')) || {};
+    const now = new Date();
+    
+    // Check for medication times
+    if (appData.medications) {
+        appData.medications.forEach(med => {
+            if (med.status === 'active' && med.times) {
+                med.times.forEach(timeStr => {
+                    const [hours, minutes] = timeStr.split(':').map(Number);
+                    
+                    // Is it time for this medication?
+                    if (now.getHours() === hours && now.getMinutes() === minutes) {
+                        createMedicationReminder(med.name, med.dosage);
+                    }
+                });
+            }
+        });
+    }
+    
+    // Check for upcoming appointments
+    if (appData.appointments) {
+        appData.appointments.forEach(apt => {
+            if (apt.status === 'upcoming') {
+                const aptDate = new Date(`${apt.date}T${apt.time}`);
+                const hoursDiff = (aptDate - now) / (1000 * 60 * 60);
+                
+                // Notify 24 hours before
+                if (hoursDiff <= 24 && hoursDiff >= 23) {
+                    createAppointmentReminder(apt.doctorName, apt.specialty, apt.date, apt.time, apt.location);
+                }
+                // Notify 1 hour before
+                else if (hoursDiff <= 1 && hoursDiff >= 0) {
+                    createAppointmentReminder(apt.doctorName, apt.specialty, apt.date, apt.time, apt.location);
+                }
+            }
+        });
+    }
+    
+    // Check for health alerts
+    if (appData.healthMetrics) {
+        // Blood pressure alert
+        if (appData.healthMetrics.bloodPressure && appData.healthMetrics.bloodPressure.length >= 2) {
+            const latest = appData.healthMetrics.bloodPressure[appData.healthMetrics.bloodPressure.length - 1];
+            const systolic = latest.value.systolic;
+            
+            if (systolic > 140) {
+                createHealthAlert('bloodPressure', `${systolic}/${latest.value.diastolic}`, 140, 'high');
+            }
+        }
+        
+        // Weight change alert
+        if (appData.healthMetrics.weight && appData.healthMetrics.weight.length >= 2) {
+            const latest = appData.healthMetrics.weight[appData.healthMetrics.weight.length - 1];
+            const previous = appData.healthMetrics.weight[appData.healthMetrics.weight.length - 2];
+            
+            const weightChange = latest.value - previous.value;
+            if (Math.abs(weightChange) >= 2) { // Alert if weight change is 2kg or more
+                createHealthAlert('weight', weightChange, 2, weightChange > 0 ? 'high' : 'low');
+            }
+        }
+        
+        // Temperature alert
+        if (appData.healthMetrics.temperature && appData.healthMetrics.temperature.length >= 1) {
+            const latest = appData.healthMetrics.temperature[appData.healthMetrics.temperature.length - 1];
+            
+            if (latest.value >= 38) {
+                createHealthAlert('temperature', latest.value, 38, 'high');
+            }
+        }
+    }
+}
+
+// Add this to DOMContentLoaded
+document.addEventListener('DOMContentLoaded', () => {
+    // ... existing initialization code ...
+
+    // Initialize notifications
+    initializeNotifications();
 });

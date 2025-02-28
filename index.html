@@ -259,7 +259,7 @@
                             BMI Calculator
                         </h3>
                     </div>
-                    <form id="bmiForm" class="bmi-form">
+                    <div class="bmi-form">
                         <div class="form-group">
                             <label>
                                 <i data-lucide="ruler"></i>
@@ -274,9 +274,9 @@
                             </label>
                             <input type="number" id="weight" placeholder="Enter your weight" required>
                         </div>
-                        <button type="submit" class="btn btn-primary">Calculate BMI</button>
+                        <button type="button" id="calculateBMIBtn" class="btn btn-primary">Calculate BMI</button>
                         <div class="bmi-result" style="display: none;"></div>
-                    </form>
+                    </div>
                 </div>
 
                 <div class="card">
@@ -659,6 +659,664 @@
 
         // Initialize Lucide icons
         lucide.createIcons();
+
+        // Add mock data to localStorage on first load
+        function setupMockData() {
+            const existingData = localStorage.getItem('healthAppData');
+            if (!existingData) {
+                // Create dates for the past week
+                const dates = [];
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    dates.push(date.toISOString());
+                }
+                
+                // Create mock health data
+                const mockData = {
+                    healthLogs: [
+                        {
+                            date: dates[0],
+                            type: 'BMI',
+                            value: 26.8,
+                            category: 'Overweight',
+                            measurements: { height: 175, weight: 82 }
+                        },
+                        {
+                            date: dates[2],
+                            type: 'BMI',
+                            value: 26.5,
+                            category: 'Overweight',
+                            measurements: { height: 175, weight: 81 }
+                        },
+                        {
+                            date: dates[4],
+                            type: 'BMI',
+                            value: 26.1,
+                            category: 'Overweight',
+                            measurements: { height: 175, weight: 80 }
+                        },
+                        {
+                            date: dates[6],
+                            type: 'BMI',
+                            value: 25.6,
+                            category: 'Overweight',
+                            measurements: { height: 175, weight: 78.5 }
+                        }
+                    ],
+                    healthMetrics: {
+                        bloodPressure: [
+                            { date: dates[0], value: { systolic: 138, diastolic: 88 } },
+                            { date: dates[2], value: { systolic: 136, diastolic: 86 } },
+                            { date: dates[4], value: { systolic: 132, diastolic: 84 } },
+                            { date: dates[6], value: { systolic: 128, diastolic: 82 } }
+                        ],
+                        weight: [
+                            { date: dates[0], value: 82 },
+                            { date: dates[2], value: 81 },
+                            { date: dates[4], value: 80 },
+                            { date: dates[6], value: 78.5 }
+                        ],
+                        temperature: [
+                            { date: dates[1], value: 36.8 },
+                            { date: dates[3], value: 36.6 },
+                            { date: dates[5], value: 36.7 }
+                        ]
+                    }
+                };
+                
+                // Save to localStorage
+                localStorage.setItem('healthAppData', JSON.stringify(mockData));
+                console.log("Mock health data initialized");
+            }
+        }
+
+        // Add this at the end of your existing script content
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load mock data first
+            setupMockData();
+            
+            // BMI Calculator - standalone implementation
+            const calculateBMIBtn = document.getElementById('calculateBMIBtn');
+            if (calculateBMIBtn) {
+                calculateBMIBtn.addEventListener('click', function(e) {
+                    // Get form values
+                    const height = parseFloat(document.getElementById('height').value);
+                    const weight = parseFloat(document.getElementById('weight').value);
+                    
+                    // Validate input
+                    if (!height || !weight) {
+                        alert('Please enter both height and weight');
+                        return;
+                    }
+                    
+                    // Calculate BMI
+                    const heightInMeters = height / 100;
+                    const bmi = weight / (heightInMeters * heightInMeters);
+                    
+                    // Determine category and color
+                    let category, color;
+                    if (bmi < 18.5) {
+                        category = 'Underweight';
+                        color = '#3B82F6';
+                    } else if (bmi < 25) {
+                        category = 'Normal';
+                        color = '#22C55E';
+                    } else if (bmi < 30) {
+                        category = 'Overweight';
+                        color = '#F59E0B';
+                    } else {
+                        category = 'Obese';
+                        color = '#EF4444';
+                    }
+                    
+                    // Update UI
+                    const resultElement = document.querySelector('.bmi-result');
+                    if (resultElement) {
+                        resultElement.innerHTML = `
+                            <div class="result-value" style="color: ${color}">
+                                ${bmi.toFixed(1)}
+                            </div>
+                            <div class="result-category" style="color: ${color}">
+                                ${category}
+                            </div>
+                            <div class="result-explanation">
+                                Your BMI indicates that you are in the ${category.toLowerCase()} range.
+                            </div>
+                        `;
+                        resultElement.style.display = 'block';
+                    }
+                    
+                    // Update BMI metric display
+                    const bmiMetric = document.querySelector('.metric-bmi .metric-value');
+                    if (bmiMetric) {
+                        bmiMetric.textContent = bmi.toFixed(1);
+                    }
+                    
+                    // Try to save to local storage
+                    try {
+                        const appData = JSON.parse(localStorage.getItem('healthAppData')) || {};
+                        const healthLogs = appData.healthLogs || [];
+                        
+                        healthLogs.push({
+                            date: new Date().toISOString(),
+                            type: 'BMI',
+                            value: parseFloat(bmi.toFixed(1)),
+                            category: category,
+                            measurements: { height, weight }
+                        });
+                        
+                        appData.healthLogs = healthLogs;
+                        localStorage.setItem('healthAppData', JSON.stringify(appData));
+                    } catch (error) {
+                        console.error("Error saving to localStorage:", error);
+                    }
+                });
+                
+                console.log("BMI calculator initialized with direct button handling");
+            }
+
+            // Improved Health Trends Chart Initialization
+            function initHealthChart() {
+                const ctx = document.getElementById('healthChart');
+                if (!ctx) return;
+                
+                // Destroy existing chart if there is one
+                const existingChart = Chart.getChart(ctx);
+                if (existingChart) {
+                    existingChart.destroy();
+                }
+                
+                // Get data from localStorage
+                const appData = JSON.parse(localStorage.getItem('healthAppData')) || {};
+                const healthMetrics = appData.healthMetrics || {};
+                
+                // Create arrays for chart data
+                const dates = [];
+                const bmiData = [];
+                const bpData = [];
+                const weightData = [];
+                const tempData = [];
+                
+                // Get dates from the past week for labels
+                const weekLabels = [];
+                for (let i = 6; i >= 0; i--) {
+                    const date = new Date();
+                    date.setDate(date.getDate() - i);
+                    weekLabels.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+                }
+                
+                // Extract BMI data
+                if (appData.healthLogs) {
+                    const bmiLogs = appData.healthLogs.filter(log => log.type === 'BMI');
+                    bmiLogs.forEach(log => {
+                        const date = new Date(log.date);
+                        dates.push(date);
+                        bmiData.push(log.value);
+                    });
+                }
+                
+                // Create datasets for the chart
+                const datasets = [];
+                
+                // Always add BMI dataset with values or mock data
+                datasets.push({
+                    label: 'BMI',
+                    data: bmiData.length > 0 ? bmiData : [26.8, 26.5, 26.2, 26.0, 25.8, 25.7, 25.6],
+                    borderColor: '#3B82F6',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                });
+                
+                // Add blood pressure dataset if available
+                if (healthMetrics.bloodPressure && healthMetrics.bloodPressure.length > 0) {
+                    const bpValues = healthMetrics.bloodPressure.map(bp => bp.value.systolic);
+                    datasets.push({
+                        label: 'Blood Pressure (Systolic)',
+                        data: bpValues,
+                        borderColor: '#EF4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        hidden: false
+                    });
+                }
+                
+                // Add weight dataset if available
+                if (healthMetrics.weight && healthMetrics.weight.length > 0) {
+                    const weightValues = healthMetrics.weight.map(w => w.value);
+                    datasets.push({
+                        label: 'Weight (kg)',
+                        data: weightValues,
+                        borderColor: '#F59E0B',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        hidden: true
+                    });
+                }
+                
+                // Create chart
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: weekLabels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                labels: {
+                                    color: '#94A3B8'
+                                }
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                backgroundColor: 'rgba(17, 24, 39, 0.8)',
+                                titleColor: '#fff',
+                                bodyColor: '#fff',
+                                borderColor: 'rgba(255, 255, 255, 0.1)',
+                                borderWidth: 1,
+                                padding: 10
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: '#94A3B8'
+                                }
+                            },
+                            x: {
+                                grid: {
+                                    color: 'rgba(255, 255, 255, 0.1)'
+                                },
+                                ticks: {
+                                    color: '#94A3B8'
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                console.log("Health Trends chart initialized");
+            }
+
+            // Initialize Health Chart when navigating to health page
+            const healthNav = document.querySelector('.nav-link[data-page="health"]');
+            if (healthNav) {
+                healthNav.addEventListener('click', function() {
+                    // Initialize chart after a small delay to ensure the canvas is in the DOM
+                    setTimeout(() => {
+                        initHealthChart();
+                        updateHealthMetrics();
+                    }, 200);
+                });
+            }
+
+            // Improved Add Health Log button functionality
+            const addHealthLogBtn = document.querySelector('.add-health-log');
+            if (addHealthLogBtn) {
+                addHealthLogBtn.addEventListener('click', function() {
+                    showHealthLogModal();
+                });
+            }
+
+            // Export Report button functionality
+            const exportReportBtn = document.querySelector('.actions .btn-secondary:nth-child(2)');
+            if (exportReportBtn) {
+                exportReportBtn.addEventListener('click', function() {
+                    exportData('pdf');
+                });
+            }
+
+            // Modal functions with visual feedback
+            function showHealthLogModal() {
+                const modal = document.getElementById('healthLogModal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    
+                    // Setup initial field types
+                    updateMetricFields();
+                    
+                    // Set current datetime
+                    const now = new Date();
+                    const dateTimeString = now.toISOString().slice(0, 16); // Format: YYYY-MM-DDThh:mm
+                    document.getElementById('metricDate').value = dateTimeString;
+                    
+                    // Add some default values based on type for better UX
+                    const metricType = document.getElementById('metricType').value;
+                    if (metricType === 'bloodPressure') {
+                        setTimeout(() => {
+                            document.getElementById('systolic').value = 120;
+                            document.getElementById('diastolic').value = 80;
+                        }, 100);
+                    } else if (metricType === 'weight') {
+                        setTimeout(() => {
+                            document.getElementById('weightValue').value = 75;
+                        }, 100);
+                    } else if (metricType === 'temperature') {
+                        setTimeout(() => {
+                            document.getElementById('temperatureValue').value = 36.6;
+                        }, 100);
+                    }
+                }
+            }
+
+            // Update metric fields based on selected type
+            function updateMetricFields() {
+                const metricType = document.getElementById('metricType').value;
+                const metricFields = document.getElementById('metricFields');
+                
+                let fieldsHTML = '';
+                switch (metricType) {
+                    case 'bloodPressure':
+                        fieldsHTML = `
+                            <div class="bp-inputs">
+                                <div class="form-group">
+                                    <label>Systolic (mmHg)</label>
+                                    <input type="number" id="systolic" required min="70" max="200" value="120">
+                                </div>
+                                <div class="form-group">
+                                    <label>Diastolic (mmHg)</label>
+                                    <input type="number" id="diastolic" required min="40" max="130" value="80">
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'weight':
+                        fieldsHTML = `
+                            <div class="form-group">
+                                <label>Weight (kg)</label>
+                                <input type="number" id="weightValue" required step="0.1" min="20" max="300" value="75">
+                            </div>
+                        `;
+                        break;
+                    case 'temperature':
+                        fieldsHTML = `
+                            <div class="form-group">
+                                <label>Temperature (°C)</label>
+                                <input type="number" id="temperatureValue" required step="0.1" min="35" max="42" value="36.6">
+                            </div>
+                        `;
+                        break;
+                }
+                
+                metricFields.innerHTML = fieldsHTML;
+            }
+
+            // Handle health log form submission with visual feedback
+            const healthLogForm = document.getElementById('healthLogForm');
+            if (healthLogForm) {
+                healthLogForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const metricType = document.getElementById('metricType').value;
+                    const date = document.getElementById('metricDate').value;
+                    let value;
+                    
+                    switch (metricType) {
+                        case 'bloodPressure':
+                            const systolic = parseInt(document.getElementById('systolic').value);
+                            const diastolic = parseInt(document.getElementById('diastolic').value);
+                            value = { systolic, diastolic };
+                            break;
+                        case 'weight':
+                            value = parseFloat(document.getElementById('weightValue').value);
+                            break;
+                        case 'temperature':
+                            value = parseFloat(document.getElementById('temperatureValue').value);
+                            break;
+                    }
+                    
+                    // Save to local storage
+                    try {
+                        const appData = JSON.parse(localStorage.getItem('healthAppData')) || {};
+                        appData.healthMetrics = appData.healthMetrics || {};
+                        appData.healthMetrics[metricType] = appData.healthMetrics[metricType] || [];
+                        
+                        // Add new metric
+                        appData.healthMetrics[metricType].push({
+                            date: new Date(date).toISOString(),
+                            value: value
+                        });
+                        
+                        localStorage.setItem('healthAppData', JSON.stringify(appData));
+                        
+                        // Update UI
+                        updateHealthMetrics(appData);
+                        
+                        // Show success message
+                        alert('Health log added successfully!');
+                    } catch (error) {
+                        console.error("Error saving health log:", error);
+                        alert('Error saving health log. Please try again.');
+                    }
+                    
+                    // Close the modal
+                    const modal = document.getElementById('healthLogModal');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                    
+                    // Refresh the health chart
+                    setTimeout(() => {
+                        initHealthChart();
+                    }, 100);
+                });
+            }
+
+            // Update metric type fields when dropdown changes
+            const metricType = document.getElementById('metricType');
+            if (metricType) {
+                metricType.addEventListener('change', updateMetricFields);
+            }
+
+            // Close modal buttons
+            document.querySelectorAll('.close-modal, .cancel-modal').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const modal = this.closest('.modal');
+                    if (modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+
+            // Function to export health data
+            window.exportData = function(format) {
+                try {
+                    const appData = JSON.parse(localStorage.getItem('healthAppData')) || {};
+                    
+                    if (format === 'pdf') {
+                        // Basic PDF content
+                        const docDefinition = {
+                            content: [
+                                { text: 'Health Journey Report', style: 'header' },
+                                { text: new Date().toLocaleDateString(), alignment: 'right', margin: [0, 0, 0, 20] },
+                                
+                                // BMI section if available
+                                { text: 'BMI History', style: 'subheader' },
+                                {
+                                    table: {
+                                        headerRows: 1,
+                                        widths: ['*', '*', '*'],
+                                        body: [
+                                            ['Date', 'BMI', 'Category'],
+                                            ...(appData.healthLogs || [])
+                                                .filter(log => log.type === 'BMI')
+                                                .map(log => [
+                                                    new Date(log.date).toLocaleDateString(),
+                                                    log.value.toFixed(1),
+                                                    log.category
+                                                ])
+                                        ]
+                                    },
+                                    margin: [0, 0, 0, 20]
+                                },
+                                
+                                // Health Metrics section
+                                { text: 'Health Metrics', style: 'subheader' },
+                                {
+                                    table: {
+                                        headerRows: 1,
+                                        widths: ['*', '*', '*'],
+                                        body: [
+                                            ['Date', 'Metric', 'Value'],
+                                            ...(appData.healthMetrics && appData.healthMetrics.bloodPressure || [])
+                                                .map(bp => [
+                                                    new Date(bp.date).toLocaleDateString(),
+                                                    'Blood Pressure',
+                                                    `${bp.value.systolic}/${bp.value.diastolic}`
+                                                ]),
+                                            ...(appData.healthMetrics && appData.healthMetrics.weight || [])
+                                                .map(w => [
+                                                    new Date(w.date).toLocaleDateString(),
+                                                    'Weight',
+                                                    `${w.value} kg`
+                                                ]),
+                                            ...(appData.healthMetrics && appData.healthMetrics.temperature || [])
+                                                .map(t => [
+                                                    new Date(t.date).toLocaleDateString(),
+                                                    'Temperature',
+                                                    `${t.value} °C`
+                                                ])
+                                        ]
+                                    }
+                                }
+                            ],
+                            styles: {
+                                header: {
+                                    fontSize: 22,
+                                    bold: true,
+                                    margin: [0, 0, 0, 10]
+                                },
+                                subheader: {
+                                    fontSize: 16,
+                                    bold: true,
+                                    margin: [0, 10, 0, 5]
+                                }
+                            }
+                        };
+                        
+                        // Generate and download PDF
+                        pdfMake.createPdf(docDefinition).download('health-report.pdf');
+                        alert('PDF report generated!');
+                    } else if (format === 'excel') {
+                        alert('Excel export not yet implemented');
+                    }
+                } catch (error) {
+                    console.error("Error exporting data:", error);
+                    alert('Failed to generate report. Please try again.');
+                }
+            };
+
+            // Improved function to update health metrics display
+            function updateHealthMetrics(appData) {
+                appData = appData || JSON.parse(localStorage.getItem('healthAppData')) || {};
+                const healthMetrics = appData.healthMetrics || {};
+                
+                // Update BMI display from health logs
+                if (appData.healthLogs && appData.healthLogs.length > 0) {
+                    const bmiLogs = appData.healthLogs.filter(log => log.type === 'BMI');
+                    if (bmiLogs.length > 0) {
+                        const latest = bmiLogs[bmiLogs.length - 1];
+                        const bmiElement = document.querySelector('.metric-bmi .metric-value');
+                        if (bmiElement) {
+                            bmiElement.textContent = latest.value.toFixed(1);
+                        }
+                    }
+                }
+                
+                // Update blood pressure display
+                if (healthMetrics.bloodPressure && healthMetrics.bloodPressure.length > 0) {
+                    const latest = healthMetrics.bloodPressure[healthMetrics.bloodPressure.length - 1];
+                    const bpElement = document.querySelector('.metric:nth-child(2) .metric-value');
+                    if (bpElement) {
+                        bpElement.textContent = `${latest.value.systolic}/${latest.value.diastolic}`;
+                    }
+                }
+                
+                // Update weight display
+                if (healthMetrics.weight && healthMetrics.weight.length > 0) {
+                    const latest = healthMetrics.weight[healthMetrics.weight.length - 1];
+                    const weightElement = document.querySelector('.metric:nth-child(3) .metric-value');
+                    if (weightElement) {
+                        weightElement.textContent = `${latest.value} kg`;
+                    }
+                }
+                
+                // Update temperature display
+                if (healthMetrics.temperature && healthMetrics.temperature.length > 0) {
+                    const latest = healthMetrics.temperature[healthMetrics.temperature.length - 1];
+                    const tempElement = document.querySelector('.metric:nth-child(4) .metric-value');
+                    if (tempElement) {
+                        tempElement.textContent = `${latest.value}°C`;
+                    }
+                }
+            }
+
+            // Initialize health metrics if on health page
+            if (document.getElementById('health-page').classList.contains('active')) {
+                setTimeout(() => {
+                    initHealthChart();
+                    updateHealthMetrics();
+                }, 100);
+            }
+
+            // Modified navigation function to ensure health chart is loaded when navigating
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const pageId = link.dataset.page;
+                    
+                    // Hide all pages first
+                    document.querySelectorAll('.page').forEach(page => {
+                        page.classList.remove('active');
+                        page.style.display = 'none';
+                    });
+                    
+                    // Show target page
+                    const targetPage = document.getElementById(`${pageId}-page`);
+                    if (targetPage) {
+                        targetPage.style.display = 'flex';
+                        setTimeout(() => {
+                            targetPage.classList.add('active');
+                        }, 10);
+                        
+                        // Initialize health page components
+                        if (pageId === 'health') {
+                            setTimeout(() => {
+                                initHealthChart();
+                                updateHealthMetrics();
+                            }, 200);
+                        }
+                    }
+                    
+                    // Update navigation
+                    navLinks.forEach(l => l.classList.remove('active'));
+                    link.classList.add('active');
+                });
+            });
+
+            // Initialize UI with mock data on page load
+            function initializeUI() {
+                // Update health metrics display
+                updateHealthMetrics();
+            }
+
+            // Execute on page load
+            initializeUI();
+        });
     </script>
 
     <div id="appointmentModal" class="modal">
@@ -762,5 +1420,156 @@
             </form>
         </div>
     </div>
+
+    <!-- Add notification container -->
+    <div id="notification-center" class="notifications-container">
+        <div class="notification-header">
+            <h3>Notifications</h3>
+            <button class="btn-icon" id="close-notifications">
+                <i data-lucide="x"></i>
+            </button>
+        </div>
+        <div class="notification-list">
+            <!-- Notifications will be added here dynamically -->
+        </div>
+    </div>
+
+    <!-- Notification button -->
+    <div class="notification-button">
+        <button class="btn-icon" id="notification-toggle">
+            <i data-lucide="bell"></i>
+            <span class="notification-badge" style="display: none;">0</span>
+        </button>
+    </div>
+
+    <style>
+        /* Notification styles */
+        .notifications-container {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 350px;
+            height: 100vh;
+            background-color: var(--card-dark);
+            z-index: 1000;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+            transition: right 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            border-left: 1px solid var(--border-color);
+        }
+
+        .notifications-container.active {
+            right: 0;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .notification-header h3 {
+            margin: 0;
+            color: var(--text-light);
+        }
+
+        .notification-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .notification-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1rem;
+            position: relative;
+            border-left: 4px solid;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .notification-item:hover {
+            transform: translateY(-2px);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .notification-item.medication {
+            border-color: #3B82F6; /* Blue */
+        }
+
+        .notification-item.health {
+            border-color: #10B981; /* Green */
+        }
+
+        .notification-item.appointment {
+            border-color: #F59E0B; /* Orange */
+        }
+
+        .notification-item .title {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            color: var(--text-light);
+        }
+
+        .notification-item .message {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .notification-item .time {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .notification-item .actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .notification-button {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            z-index: 90;
+        }
+
+        .notification-button button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            color: white;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #EF4444;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+    </style>
 </body>
 </html>
