@@ -29,9 +29,10 @@
             align-items: center;
             gap: 0.5rem;
             background: rgba(255, 255, 255, 0.1);
-            padding: 0.5rem 1rem;
+            padding: 0.5rem;
             border-radius: 100px;
             color: var(--text-light);
+            position: relative;
         }
 
         .user-info.visible {
@@ -41,16 +42,132 @@
         .sign-in-button.hidden {
             display: none;
         }
+        
+        /* Updated styles for user menu */
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        .user-email-dropdown {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            background-color: var(--card-dark);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            min-width: 200px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            display: none;
+            flex-direction: column;
+            gap: 0.75rem;
+            border: 1px solid var(--border-color);
+            z-index: 110;
+        }
+        
+        .user-email-dropdown.active {
+            display: flex;
+        }
+        
+        .user-email-display {
+            font-size: 0.9rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            word-break: break-all;
+        }
+        
+        /* Fixed sign out button styling */
+        .sign-out-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: none;
+            border: none;
+            padding: 0.5rem;
+            color: var(--text-light);
+            cursor: pointer;
+            border-radius: 6px;
+            width: 100%;
+            transition: background-color 0.2s ease;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+        
+        .sign-out-btn:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .sign-out-btn i {
+            color: #EF4444;
+        }
+
+        /* Updated notification button styles */
+        .notification-button {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 5rem; /* Increased to avoid navigation bar */
+            z-index: 1000; /* Increased z-index to appear above navigation */
+        }
+
+        .notification-button button {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: var(--primary-color);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+            color: white;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        .notification-button button:hover {
+            transform: translateY(-2px);
+            background-color: var(--primary-hover);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background-color: #EF4444;
+            color: white;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body class="dark-mode">
     <div class="auth-area">
         <div class="user-info">
-            <i data-lucide="user" width="20" height="20"></i>
-            <span id="userName"></span>
-            <button class="btn-icon" onclick="signOut()">
-                <i data-lucide="log-out" width="20" height="20"></i>
-            </button>
+            <div class="user-avatar">
+                <i data-lucide="user" width="20" height="20"></i>
+            </div>
+            <div class="user-email-dropdown">
+                <div class="user-email-display">
+                    <span id="userName"></span>
+                </div>
+                <button class="sign-out-btn" onclick="signOut()">
+                    <i data-lucide="log-out" width="18" height="18"></i>
+                    <span>Sign Out</span>
+                </button>
+            </div>
         </div>
         <button class="btn btn-primary sign-in-button" onclick="window.location.href='auth.html'">
             <i data-lucide="log-in"></i>
@@ -1317,6 +1434,26 @@
             // Execute on page load
             initializeUI();
         });
+
+        // Add user avatar click handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const userAvatar = document.querySelector('.user-avatar');
+            const userEmailDropdown = document.querySelector('.user-email-dropdown');
+            
+            if (userAvatar) {
+                userAvatar.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    userEmailDropdown.classList.toggle('active');
+                });
+            }
+            
+            // Close dropdown when clicking elsewhere
+            document.addEventListener('click', function() {
+                if (userEmailDropdown && userEmailDropdown.classList.contains('active')) {
+                    userEmailDropdown.classList.remove('active');
+                }
+            });
+        });
     </script>
 
     <div id="appointmentModal" class="modal">
@@ -1537,8 +1674,8 @@
         .notification-button {
             position: fixed;
             right: 1.5rem;
-            bottom: 1.5rem;
-            z-index: 90;
+            bottom: 5rem; /* Increased to avoid navigation bar */
+            z-index: 1000; /* Increased z-index to appear above navigation */
         }
 
         .notification-button button {
@@ -1553,6 +1690,12 @@
             cursor: pointer;
             border: none;
             color: white;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+
+        .notification-button button:hover {
+            transform: translateY(-2px);
+            background-color: var(--primary-hover);
         }
 
         .notification-badge {
