@@ -1,4 +1,4 @@
-# Health Journey - Comprehensive Health Management Application
+# MedTracker - Comprehensive Health Management Application
 
 ## Project Overview
 
